@@ -1,0 +1,14 @@
+app:
+  jwt:
+    # Secreto fijo de solo-test: nunca se usa fuera de "mvn test". No requiere
+    # que el desarrollador exporte JWT_SECRET a mano para poder testear.
+    secret: dGVzdC1vbmx5LXNlY3JldC1uby11c2FyLWVuLXByb2R1Y2Npb24tMTIzNDU2Nzg5MA==
+    access-token-expiration-minutes: 15
+    refresh-token-expiration-days: 7
+  seed:
+    admin-email: admin@test.enlaza.dev
+    admin-password: AdminTest123!
+    contable-email: contable@test.enlaza.dev
+    contable-password: ContableTest123!
+    cliente-email: cliente@test.enlaza.dev
+    cliente-password: ClienteTest123!
