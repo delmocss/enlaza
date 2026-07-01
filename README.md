@@ -6,3 +6,7 @@ Sistema de facturación electrónica multi-empresa con cadena de integridad veri
 
 Este proyecto es un ejercicio de portfolio backend y **no implementa ni certifica el cumplimiento legal de VeriFactu**.
 
+## Ejecutar en local (provisional, se ampliará en la Fase 8)
+
+Copia `.env.example` a `.env` y exporta esas variables antes de arrancar (por ejemplo con `docker-compose up`, que ya las lee de `.env`). Ejecutar con `mvn spring-boot:run` sin exportarlas primero fallará al arrancar: `JWT_SECRET` y las credenciales de los usuarios semilla (`ADMIN_EMAIL`/`ADMIN_PASSWORD`, `DEMO_CONTABLE_*`, `DEMO_CLIENTE_*`) son obligatorias desde la Fase 3.
+
