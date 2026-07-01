@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: enlaza-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-enlaza}
+      POSTGRES_USER: ${POSTGRES_USER:-enlaza}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - enlaza-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-enlaza} -d ${POSTGRES_DB:-enlaza}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: enlaza-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-enlaza}
+      DB_USERNAME: ${POSTGRES_USER:-enlaza}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en .env}
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en .env}
+      JWT_ACCESS_EXPIRATION_MINUTES: ${JWT_ACCESS_EXPIRATION_MINUTES:-15}
+      JWT_REFRESH_EXPIRATION_DAYS: ${JWT_REFRESH_EXPIRATION_DAYS:-7}
+      SERVER_PORT: ${SERVER_PORT:-8080}
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+
+volumes:
+  enlaza-postgres-data:
