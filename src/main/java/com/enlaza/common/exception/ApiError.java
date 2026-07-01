@@ -12,11 +12,11 @@ public record ApiError(
         Map<String, String> fieldErrors
 ) {
 
-    public ApiError(int status, String error, String message, String path) {
-        this(Instant.now(), status, error, message, path, null);
+    public static ApiError of(int status, String error, String message, String path) {
+        return new ApiError(Instant.now(), status, error, message, path, null);
     }
 
-    public ApiError(int status, String error, String message, String path, Map<String, String> fieldErrors) {
-        this(Instant.now(), status, error, message, path, fieldErrors);
+    public static ApiError of(int status, String error, String message, String path, Map<String, String> fieldErrors) {
+        return new ApiError(Instant.now(), status, error, message, path, fieldErrors);
     }
 }

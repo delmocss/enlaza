@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Punto unico de traduccion de excepciones a respuestas JSON. Ninguna excepcion sin capturar
@@ -46,9 +47,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(fieldError ->
-                fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage()));
+                fieldErrors.put(fieldError.getField(),
+                        Objects.requireNonNullElse(fieldError.getDefaultMessage(), "Valor invalido")));
 
-        ApiError apiError = new ApiError(
+        ApiError apiError = ApiError.of(
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 "Uno o mas campos no son validos",
@@ -65,7 +67,7 @@ public class GlobalExceptionHandler {
     }
 
     private ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest request) {
-        ApiError apiError = new ApiError(status.value(), status.getReasonPhrase(), message, request.getRequestURI());
+        ApiError apiError = ApiError.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI());
         return ResponseEntity.status(status).body(apiError);
     }
 }
