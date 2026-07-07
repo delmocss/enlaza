@@ -76,7 +76,7 @@ public class EmpresaService {
         return EmpresaResponse.of(empresa);
     }
 
-    Empresa buscarPorId(UUID id) {
+    public Empresa buscarPorId(UUID id) {
         return empresaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Empresa no encontrada: " + id));
     }
