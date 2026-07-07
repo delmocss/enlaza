@@ -2,9 +2,8 @@ package com.enlaza.serie;
 
 import com.enlaza.common.exception.BusinessRuleException;
 import com.enlaza.common.exception.ResourceNotFoundException;
-import com.enlaza.empresa.EmpresaAccessService;
+import com.enlaza.empresa.Empresa;
 import com.enlaza.empresa.EmpresaService;
-import com.enlaza.security.EnlazaUserPrincipal;
 import com.enlaza.serie.dto.SerieFacturacionRequest;
 import com.enlaza.serie.dto.SerieFacturacionResponse;
 import lombok.RequiredArgsConstructor;
@@ -32,12 +31,13 @@ public class SerieFacturacionService {
 
     private final SerieFacturacionRepository serieFacturacionRepository;
     private final EmpresaService empresaService;
-    private final EmpresaAccessService empresaAccessService;
 
     @Transactional
-    public SerieFacturacionResponse crear(EnlazaUserPrincipal principal, UUID empresaId, SerieFacturacionRequest request) {
-        empresaAccessService.verificarAcceso(principal, empresaId);
-        empresaService.buscarPorId(empresaId);
+    public SerieFacturacionResponse crear(UUID empresaId, SerieFacturacionRequest request) {
+        Empresa empresa = empresaService.buscarPorId(empresaId);
+        if (!empresa.isActiva()) {
+            throw new BusinessRuleException("No se pueden crear series en una empresa desactivada");
+        }
 
         if (serieFacturacionRepository.existsByEmpresaIdAndCodigo(empresaId, request.codigo())) {
             throw new BusinessRuleException("Ya existe una serie con codigo " + request.codigo() + " en esta empresa");
@@ -54,29 +54,25 @@ public class SerieFacturacionService {
         return SerieFacturacionResponse.of(serieFacturacionRepository.save(serie));
     }
 
-    public List<SerieFacturacionResponse> listar(EnlazaUserPrincipal principal, UUID empresaId) {
-        empresaAccessService.verificarAcceso(principal, empresaId);
+    public List<SerieFacturacionResponse> listar(UUID empresaId) {
         return serieFacturacionRepository.findByEmpresaId(empresaId).stream()
                 .map(SerieFacturacionResponse::of)
                 .toList();
     }
 
-    public SerieFacturacionResponse obtener(EnlazaUserPrincipal principal, UUID empresaId, UUID serieId) {
-        empresaAccessService.verificarAcceso(principal, empresaId);
+    public SerieFacturacionResponse obtener(UUID empresaId, UUID serieId) {
         return SerieFacturacionResponse.of(buscarPorIdYEmpresa(serieId, empresaId));
     }
 
     @Transactional
-    public SerieFacturacionResponse activar(EnlazaUserPrincipal principal, UUID empresaId, UUID serieId) {
-        empresaAccessService.verificarAcceso(principal, empresaId);
+    public SerieFacturacionResponse activar(UUID empresaId, UUID serieId) {
         SerieFacturacion serie = buscarPorIdYEmpresa(serieId, empresaId);
         serie.setActiva(true);
         return SerieFacturacionResponse.of(serie);
     }
 
     @Transactional
-    public SerieFacturacionResponse desactivar(EnlazaUserPrincipal principal, UUID empresaId, UUID serieId) {
-        empresaAccessService.verificarAcceso(principal, empresaId);
+    public SerieFacturacionResponse desactivar(UUID empresaId, UUID serieId) {
         SerieFacturacion serie = buscarPorIdYEmpresa(serieId, empresaId);
         serie.setActiva(false);
         return SerieFacturacionResponse.of(serie);

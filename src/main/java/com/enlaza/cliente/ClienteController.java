@@ -2,13 +2,11 @@ package com.enlaza.cliente;
 
 import com.enlaza.cliente.dto.ClienteRequest;
 import com.enlaza.cliente.dto.ClienteResponse;
-import com.enlaza.security.EnlazaUserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,10 +20,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Scoped a una Empresa. ADMIN entra siempre; CONTABLE solo si tiene la
- * empresa asignada -- lo verifica EmpresaAccessService dentro de cada
- * metodo de ClienteService, no aqui (el rol pasa la puerta, los datos
- * deciden el acceso real).
+ * Scoped a una Empresa. El @PreAuthorize de clase es un cierre de emergencia
+ * (bloquea CLIENTE) por si algun metodo futuro olvida el suyo; el chequeo
+ * real -- ADMIN entra siempre, CONTABLE solo si tiene la empresa asignada --
+ * lo hace @empresaAccessService.tieneAcceso en cada metodo, declarativamente,
+ * antes de que el metodo se ejecute.
  */
 @RestController
 @RequestMapping("/api/empresas/{empresaId}/clientes")
@@ -36,48 +35,34 @@ public class ClienteController {
     private final ClienteService clienteService;
 
     @PostMapping
-    public ResponseEntity<ClienteResponse> crear(
-            @AuthenticationPrincipal EnlazaUserPrincipal principal,
-            @PathVariable UUID empresaId,
-            @Valid @RequestBody ClienteRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.crear(principal, empresaId, request));
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<ClienteResponse> crear(@PathVariable UUID empresaId, @Valid @RequestBody ClienteRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(clienteService.crear(empresaId, request));
     }
 
     @GetMapping
-    public ResponseEntity<List<ClienteResponse>> listar(
-            @AuthenticationPrincipal EnlazaUserPrincipal principal,
-            @PathVariable UUID empresaId
-    ) {
-        return ResponseEntity.ok(clienteService.listar(principal, empresaId));
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<List<ClienteResponse>> listar(@PathVariable UUID empresaId) {
+        return ResponseEntity.ok(clienteService.listar(empresaId));
     }
 
     @GetMapping("/{clienteId}")
-    public ResponseEntity<ClienteResponse> obtener(
-            @AuthenticationPrincipal EnlazaUserPrincipal principal,
-            @PathVariable UUID empresaId,
-            @PathVariable UUID clienteId
-    ) {
-        return ResponseEntity.ok(clienteService.obtener(principal, empresaId, clienteId));
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<ClienteResponse> obtener(@PathVariable UUID empresaId, @PathVariable UUID clienteId) {
+        return ResponseEntity.ok(clienteService.obtener(empresaId, clienteId));
     }
 
     @PutMapping("/{clienteId}")
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
     public ResponseEntity<ClienteResponse> actualizar(
-            @AuthenticationPrincipal EnlazaUserPrincipal principal,
-            @PathVariable UUID empresaId,
-            @PathVariable UUID clienteId,
-            @Valid @RequestBody ClienteRequest request
-    ) {
-        return ResponseEntity.ok(clienteService.actualizar(principal, empresaId, clienteId, request));
+            @PathVariable UUID empresaId, @PathVariable UUID clienteId, @Valid @RequestBody ClienteRequest request) {
+        return ResponseEntity.ok(clienteService.actualizar(empresaId, clienteId, request));
     }
 
     @DeleteMapping("/{clienteId}")
-    public ResponseEntity<Void> eliminar(
-            @AuthenticationPrincipal EnlazaUserPrincipal principal,
-            @PathVariable UUID empresaId,
-            @PathVariable UUID clienteId
-    ) {
-        clienteService.eliminar(principal, empresaId, clienteId);
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<Void> eliminar(@PathVariable UUID empresaId, @PathVariable UUID clienteId) {
+        clienteService.eliminar(empresaId, clienteId);
         return ResponseEntity.noContent().build();
     }
 }

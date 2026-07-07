@@ -92,6 +92,37 @@ class EmpresaScopedAccessIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void contableNoAsignado_recibe403AlListarYObtenerCliente() {
+        UUID clienteId = restTemplate.exchange(
+                "/api/empresas/" + empresaNoAsignada + "/clientes", HttpMethod.POST,
+                authenticated(adminToken, nuevoClienteRequest()), ClienteResponse.class)
+                .getBody().id();
+
+        ResponseEntity<String> listar = restTemplate.exchange(
+                "/api/empresas/" + empresaNoAsignada + "/clientes", HttpMethod.GET,
+                authenticated(contableToken), String.class);
+        assertThat(listar.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> obtener = restTemplate.exchange(
+                "/api/empresas/" + empresaNoAsignada + "/clientes/" + clienteId, HttpMethod.GET,
+                authenticated(contableToken), String.class);
+        assertThat(obtener.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void crearCliente_enEmpresaDesactivada_devuelve409() {
+        restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/desactivar", HttpMethod.PATCH,
+                authenticated(adminToken), EmpresaResponse.class);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/clientes", HttpMethod.POST,
+                authenticated(adminToken, nuevoClienteRequest()), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
     void contableAsignado_puedeCrearSerieConHashGenesis() {
         ResponseEntity<SerieFacturacionResponse> response = restTemplate.exchange(
                 "/api/empresas/" + empresaAsignada + "/series", HttpMethod.POST,
@@ -124,6 +155,32 @@ class EmpresaScopedAccessIT extends AbstractIntegrationTest {
                 authenticated(adminToken, new SerieFacturacionRequest("F2026")), String.class);
 
         assertThat(duplicada.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void contableNoAsignado_recibe403AlActivarYDesactivarSerie() {
+        UUID serieId = restTemplate.exchange(
+                "/api/empresas/" + empresaNoAsignada + "/series", HttpMethod.POST,
+                authenticated(adminToken, new SerieFacturacionRequest("A")), SerieFacturacionResponse.class)
+                .getBody().id();
+
+        ResponseEntity<String> desactivar = restTemplate.exchange(
+                "/api/empresas/" + empresaNoAsignada + "/series/" + serieId + "/desactivar", HttpMethod.PATCH,
+                authenticated(contableToken), String.class);
+        assertThat(desactivar.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void crearSerie_enEmpresaDesactivada_devuelve409() {
+        restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/desactivar", HttpMethod.PATCH,
+                authenticated(adminToken), EmpresaResponse.class);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/series", HttpMethod.POST,
+                authenticated(adminToken, new SerieFacturacionRequest("A")), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
     private ResponseEntity<EmpresaResponse> crearEmpresa(String token) {

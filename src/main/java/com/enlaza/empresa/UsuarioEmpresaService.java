@@ -11,10 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -51,19 +48,7 @@ public class UsuarioEmpresaService {
     }
 
     public List<ContableAsignadoResponse> listarAsignados(UUID empresaId) {
-        List<UsuarioEmpresa> asignaciones = usuarioEmpresaRepository.findByEmpresaId(empresaId);
-
-        Map<UUID, Usuario> usuariosPorId = usuarioRepository
-                .findAllById(asignaciones.stream().map(UsuarioEmpresa::getUsuarioId).toList())
-                .stream()
-                .collect(Collectors.toMap(Usuario::getId, Function.identity()));
-
-        return asignaciones.stream()
-                .map(a -> {
-                    Usuario usuario = usuariosPorId.get(a.getUsuarioId());
-                    return new ContableAsignadoResponse(
-                            a.getUsuarioId(), usuario.getEmail(), usuario.getNombre(), a.getFechaAsignacion());
-                })
-                .toList();
+        empresaService.buscarPorId(empresaId);
+        return usuarioEmpresaRepository.findAsignadosConDatosUsuario(empresaId);
     }
 }
