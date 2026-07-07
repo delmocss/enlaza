@@ -2,6 +2,7 @@ package com.enlaza.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,6 +37,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         return build(HttpStatus.FORBIDDEN, "No tienes permisos para realizar esta accion", request);
+    }
+
+    /**
+     * P.ej. borrar un Cliente que ya tiene Facturas (FK RESTRICT): sin este
+     * handler, la excepcion de bajo nivel de la base de datos caia en el
+     * handler generico y devolvia un 500 opaco en vez de un 409 que explique
+     * que hay registros relacionados.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolation(DataIntegrityViolationException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "La operacion no se puede completar porque hay registros relacionados", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
