@@ -13,6 +13,8 @@ import com.enlaza.factura.dto.LineaFacturaRequest;
 import com.enlaza.factura.dto.LineaFacturaResponse;
 import com.enlaza.serie.SerieFacturacion;
 import com.enlaza.serie.SerieFacturacionRepository;
+import com.enlaza.usuario.Usuario;
+import com.enlaza.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ public class FacturaService {
     private final SerieFacturacionRepository serieFacturacionRepository;
     private final ClienteRepository clienteRepository;
     private final EmpresaService empresaService;
+    private final UsuarioRepository usuarioRepository;
 
     /**
      * El lock PESSIMISTIC_WRITE sobre la fila de SerieFacturacion se
@@ -100,23 +103,28 @@ public class FacturaService {
 
     public List<FacturaResponse> listar(UUID empresaId, UUID serieId) {
         verificarSerieDeEmpresa(empresaId, serieId);
-
-        List<Factura> facturas = facturaRepository.findBySerieId(serieId);
-        Map<UUID, List<LineaFacturaResponse>> lineasPorFactura = lineaFacturaRepository
-                .findByFacturaIdIn(facturas.stream().map(Factura::getId).toList())
-                .stream()
-                .collect(Collectors.groupingBy(LineaFactura::getFacturaId,
-                        Collectors.mapping(LineaFacturaResponse::of, Collectors.toList())));
-
-        return facturas.stream()
-                .map(f -> FacturaResponse.of(f, lineasPorFactura.getOrDefault(f.getId(), List.of())))
-                .toList();
+        return construirRespuestas(facturaRepository.findBySerieId(serieId));
     }
 
     public FacturaResponse obtener(UUID empresaId, UUID serieId, UUID facturaId) {
         verificarSerieDeEmpresa(empresaId, serieId);
         Factura factura = buscarPorIdYSerie(facturaId, serieId);
         return FacturaResponse.of(factura, lineasDe(facturaId));
+    }
+
+    /**
+     * Portal del CLIENTE: sus propias facturas, resueltas via
+     * Usuario.clienteId, no via EmpresaAccessService -- es acceso a datos
+     * propios, no una asignacion a una Empresa.
+     */
+    public List<FacturaResponse> listarPorUsuarioCliente(UUID usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + usuarioId));
+        if (usuario.getClienteId() == null) {
+            return List.of();
+        }
+
+        return construirRespuestas(facturaRepository.findByClienteIdOrderByFechaEmisionDesc(usuario.getClienteId()));
     }
 
     @Transactional
@@ -154,6 +162,18 @@ public class FacturaService {
 
     private BigDecimal sumar(List<LineaFactura> lineas, java.util.function.Function<LineaFactura, BigDecimal> campo) {
         return lineas.stream().map(campo).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private List<FacturaResponse> construirRespuestas(List<Factura> facturas) {
+        Map<UUID, List<LineaFacturaResponse>> lineasPorFactura = lineaFacturaRepository
+                .findByFacturaIdIn(facturas.stream().map(Factura::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(LineaFactura::getFacturaId,
+                        Collectors.mapping(LineaFacturaResponse::of, Collectors.toList())));
+
+        return facturas.stream()
+                .map(f -> FacturaResponse.of(f, lineasPorFactura.getOrDefault(f.getId(), List.of())))
+                .toList();
     }
 
     private String calcularHash(UUID serieId, int numero, Instant fechaEmision, UUID clienteId, BigDecimal total, String hashAnterior) {
