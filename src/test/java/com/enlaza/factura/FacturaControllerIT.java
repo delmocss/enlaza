@@ -98,6 +98,17 @@ class FacturaControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void eliminarCliente_conFacturasExistentes_devuelve409NoOpaco500() {
+        crearFactura(new LineaFacturaRequest("A", BigDecimal.ONE, new BigDecimal("10.00"), BigDecimal.ZERO, BigDecimal.ZERO));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/empresas/" + empresaId + "/clientes/" + clienteId, HttpMethod.DELETE,
+                authenticated(adminToken), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
     void crear_sinLineas_devuelve400() {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/empresas/" + empresaId + "/series/" + serieId + "/facturas", HttpMethod.POST,

@@ -56,14 +56,17 @@ public class FacturaService {
             throw new BusinessRuleException("No se pueden emitir facturas en una empresa desactivada");
         }
 
+        // Validar el Cliente ANTES de tomar el lock sobre la serie: si la
+        // peticion va a fallar de todos modos, mejor no bloquear a otras
+        // peticiones concurrentes que si podrian numerar correctamente.
+        Cliente cliente = clienteRepository.findByIdAndEmpresaId(request.clienteId(), empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + request.clienteId()));
+
         SerieFacturacion serie = serieFacturacionRepository.findByIdAndEmpresaIdForUpdate(serieId, empresaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Serie de facturacion no encontrada: " + serieId));
         if (!serie.isActiva()) {
             throw new BusinessRuleException("No se pueden emitir facturas en una serie desactivada");
         }
-
-        Cliente cliente = clienteRepository.findByIdAndEmpresaId(request.clienteId(), empresaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + request.clienteId()));
 
         List<LineaFactura> lineas = request.lineas().stream().map(this::calcularLinea).toList();
         BigDecimal baseImponible = sumar(lineas, LineaFactura::getImporteBase);
@@ -74,7 +77,8 @@ public class FacturaService {
         int numero = serie.getUltimoNumero() + 1;
         Instant fechaEmision = Instant.now();
         String hashAnterior = serie.getUltimoHash();
-        String hashActual = calcularHash(serieId, numero, fechaEmision, cliente.getId(), total, hashAnterior);
+        String hashActual = calcularHash(serieId, numero, fechaEmision, cliente.getId(),
+                baseImponible, totalIva, totalIrpf, total, lineas, hashAnterior);
 
         Factura factura = Factura.builder()
                 .serieId(serieId)
@@ -176,13 +180,36 @@ public class FacturaService {
                 .toList();
     }
 
-    private String calcularHash(UUID serieId, int numero, Instant fechaEmision, UUID clienteId, BigDecimal total, String hashAnterior) {
+    /**
+     * Incluye baseImponible/totalIva/totalIrpf y el contenido de cada linea
+     * (no solo el total): dos facturas con el mismo total pero distinta
+     * composicion fiscal o distintas lineas deben producir hashes distintos,
+     * o alterar una linea directamente en la base de datos sin tocar el
+     * total pasaria desapercibido para la cadena de integridad.
+     */
+    private String calcularHash(UUID serieId, int numero, Instant fechaEmision, UUID clienteId,
+                                 BigDecimal baseImponible, BigDecimal totalIva, BigDecimal totalIrpf, BigDecimal total,
+                                 List<LineaFactura> lineas, String hashAnterior) {
+        String lineasContenido = lineas.stream()
+                .map(l -> String.join(":",
+                        l.getDescripcion(),
+                        l.getCantidad().toPlainString(),
+                        l.getPrecioUnitario().toPlainString(),
+                        l.getPorcentajeIva().toPlainString(),
+                        l.getPorcentajeIrpf().toPlainString(),
+                        l.getImporteTotal().toPlainString()))
+                .collect(Collectors.joining(";"));
+
         String contenido = String.join("|",
                 serieId.toString(),
                 String.valueOf(numero),
                 fechaEmision.toString(),
                 clienteId.toString(),
+                baseImponible.toPlainString(),
+                totalIva.toPlainString(),
+                totalIrpf.toPlainString(),
                 total.toPlainString(),
+                lineasContenido,
                 hashAnterior);
         return Sha256.hex(contenido);
     }
