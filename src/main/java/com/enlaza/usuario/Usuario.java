@@ -46,8 +46,8 @@ public class Usuario {
     private Role role;
 
     /**
-     * Solo se rellena cuando role = CLIENTE. Sin FK fisica hasta que la tabla
-     * cliente exista (Fase 4) -- ver decision D5 del diseno de Fase 3.
+     * Solo se rellena cuando role = CLIENTE -- acceso de portal opcional al
+     * Cliente fiscal correspondiente (ver Cliente, Fase 4).
      */
     @Column(name = "cliente_id")
     private UUID clienteId;
