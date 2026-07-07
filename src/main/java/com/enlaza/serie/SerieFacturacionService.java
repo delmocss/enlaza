@@ -2,6 +2,7 @@ package com.enlaza.serie;
 
 import com.enlaza.common.exception.BusinessRuleException;
 import com.enlaza.common.exception.ResourceNotFoundException;
+import com.enlaza.common.hash.Sha256;
 import com.enlaza.empresa.Empresa;
 import com.enlaza.empresa.EmpresaService;
 import com.enlaza.serie.dto.SerieFacturacionRequest;
@@ -10,10 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,7 +44,7 @@ public class SerieFacturacionService {
                 .empresaId(empresaId)
                 .codigo(request.codigo())
                 .ultimoNumero(0)
-                .ultimoHash(hashGenesis())
+                .ultimoHash(Sha256.hex(GENESIS_SEED))
                 .activa(true)
                 .build();
 
@@ -81,15 +78,5 @@ public class SerieFacturacionService {
     private SerieFacturacion buscarPorIdYEmpresa(UUID serieId, UUID empresaId) {
         return serieFacturacionRepository.findByIdAndEmpresaId(serieId, empresaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Serie de facturacion no encontrada: " + serieId));
-    }
-
-    private static String hashGenesis() {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(GENESIS_SEED.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 no disponible en esta JVM", e);
-        }
     }
 }

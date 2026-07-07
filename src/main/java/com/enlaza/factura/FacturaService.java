@@ -1,0 +1,183 @@
+package com.enlaza.factura;
+
+import com.enlaza.cliente.Cliente;
+import com.enlaza.cliente.ClienteRepository;
+import com.enlaza.common.exception.BusinessRuleException;
+import com.enlaza.common.exception.ResourceNotFoundException;
+import com.enlaza.common.hash.Sha256;
+import com.enlaza.empresa.Empresa;
+import com.enlaza.empresa.EmpresaService;
+import com.enlaza.factura.dto.FacturaRequest;
+import com.enlaza.factura.dto.FacturaResponse;
+import com.enlaza.factura.dto.LineaFacturaRequest;
+import com.enlaza.factura.dto.LineaFacturaResponse;
+import com.enlaza.serie.SerieFacturacion;
+import com.enlaza.serie.SerieFacturacionRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class FacturaService {
+
+    private static final BigDecimal CIEN = BigDecimal.valueOf(100);
+
+    private final FacturaRepository facturaRepository;
+    private final LineaFacturaRepository lineaFacturaRepository;
+    private final SerieFacturacionRepository serieFacturacionRepository;
+    private final ClienteRepository clienteRepository;
+    private final EmpresaService empresaService;
+
+    /**
+     * El lock PESSIMISTIC_WRITE sobre la fila de SerieFacturacion se
+     * mantiene durante toda la transaccion: una segunda peticion concurrente
+     * de creacion en la MISMA serie espera aqui hasta que esta termine
+     * (commit o rollback), y entonces lee el ultimoNumero/ultimoHash ya
+     * actualizado -- sin eso, dos peticiones podrian leer el mismo
+     * ultimoNumero antes de que ninguna escriba y emitir el mismo numero
+     * dos veces (D5 del modelo de datos).
+     */
+    @Transactional
+    public FacturaResponse crear(UUID empresaId, UUID serieId, FacturaRequest request, UUID creadoPor) {
+        Empresa empresa = empresaService.buscarPorId(empresaId);
+        if (!empresa.isActiva()) {
+            throw new BusinessRuleException("No se pueden emitir facturas en una empresa desactivada");
+        }
+
+        SerieFacturacion serie = serieFacturacionRepository.findByIdAndEmpresaIdForUpdate(serieId, empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Serie de facturacion no encontrada: " + serieId));
+        if (!serie.isActiva()) {
+            throw new BusinessRuleException("No se pueden emitir facturas en una serie desactivada");
+        }
+
+        Cliente cliente = clienteRepository.findByIdAndEmpresaId(request.clienteId(), empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + request.clienteId()));
+
+        List<LineaFactura> lineas = request.lineas().stream().map(this::calcularLinea).toList();
+        BigDecimal baseImponible = sumar(lineas, LineaFactura::getImporteBase);
+        BigDecimal totalIva = sumar(lineas, LineaFactura::getImporteIva);
+        BigDecimal totalIrpf = sumar(lineas, LineaFactura::getImporteIrpf);
+        BigDecimal total = sumar(lineas, LineaFactura::getImporteTotal);
+
+        int numero = serie.getUltimoNumero() + 1;
+        Instant fechaEmision = Instant.now();
+        String hashAnterior = serie.getUltimoHash();
+        String hashActual = calcularHash(serieId, numero, fechaEmision, cliente.getId(), total, hashAnterior);
+
+        Factura factura = Factura.builder()
+                .serieId(serieId)
+                .numero(numero)
+                .fechaEmision(fechaEmision)
+                .clienteId(cliente.getId())
+                .estado(EstadoFactura.EMITIDA)
+                .hashAnterior(hashAnterior)
+                .hashActual(hashActual)
+                .baseImponible(baseImponible)
+                .totalIva(totalIva)
+                .totalIrpf(totalIrpf)
+                .total(total)
+                .creadoPor(creadoPor)
+                .build();
+        Factura facturaGuardada = facturaRepository.save(factura);
+
+        lineas.forEach(linea -> linea.setFacturaId(facturaGuardada.getId()));
+        List<LineaFactura> lineasGuardadas = lineaFacturaRepository.saveAll(lineas);
+
+        serie.setUltimoNumero(numero);
+        serie.setUltimoHash(hashActual);
+
+        return FacturaResponse.of(facturaGuardada, lineasGuardadas.stream().map(LineaFacturaResponse::of).toList());
+    }
+
+    public List<FacturaResponse> listar(UUID empresaId, UUID serieId) {
+        verificarSerieDeEmpresa(empresaId, serieId);
+
+        List<Factura> facturas = facturaRepository.findBySerieId(serieId);
+        Map<UUID, List<LineaFacturaResponse>> lineasPorFactura = lineaFacturaRepository
+                .findByFacturaIdIn(facturas.stream().map(Factura::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(LineaFactura::getFacturaId,
+                        Collectors.mapping(LineaFacturaResponse::of, Collectors.toList())));
+
+        return facturas.stream()
+                .map(f -> FacturaResponse.of(f, lineasPorFactura.getOrDefault(f.getId(), List.of())))
+                .toList();
+    }
+
+    public FacturaResponse obtener(UUID empresaId, UUID serieId, UUID facturaId) {
+        verificarSerieDeEmpresa(empresaId, serieId);
+        Factura factura = buscarPorIdYSerie(facturaId, serieId);
+        return FacturaResponse.of(factura, lineasDe(facturaId));
+    }
+
+    @Transactional
+    public FacturaResponse anular(UUID empresaId, UUID serieId, UUID facturaId) {
+        verificarSerieDeEmpresa(empresaId, serieId);
+        Factura factura = buscarPorIdYSerie(facturaId, serieId);
+        if (factura.getEstado() == EstadoFactura.ANULADA) {
+            throw new BusinessRuleException("La factura ya esta anulada");
+        }
+
+        factura.setEstado(EstadoFactura.ANULADA);
+        return FacturaResponse.of(factura, lineasDe(facturaId));
+    }
+
+    private LineaFactura calcularLinea(LineaFacturaRequest request) {
+        BigDecimal importeBase = request.cantidad().multiply(request.precioUnitario()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal importeIva = importeBase.multiply(request.porcentajeIva())
+                .divide(CIEN, 2, RoundingMode.HALF_UP);
+        BigDecimal importeIrpf = importeBase.multiply(request.porcentajeIrpf())
+                .divide(CIEN, 2, RoundingMode.HALF_UP);
+        BigDecimal importeTotal = importeBase.add(importeIva).subtract(importeIrpf);
+
+        return LineaFactura.builder()
+                .descripcion(request.descripcion())
+                .cantidad(request.cantidad())
+                .precioUnitario(request.precioUnitario())
+                .porcentajeIva(request.porcentajeIva())
+                .porcentajeIrpf(request.porcentajeIrpf())
+                .importeBase(importeBase)
+                .importeIva(importeIva)
+                .importeIrpf(importeIrpf)
+                .importeTotal(importeTotal)
+                .build();
+    }
+
+    private BigDecimal sumar(List<LineaFactura> lineas, java.util.function.Function<LineaFactura, BigDecimal> campo) {
+        return lineas.stream().map(campo).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private String calcularHash(UUID serieId, int numero, Instant fechaEmision, UUID clienteId, BigDecimal total, String hashAnterior) {
+        String contenido = String.join("|",
+                serieId.toString(),
+                String.valueOf(numero),
+                fechaEmision.toString(),
+                clienteId.toString(),
+                total.toPlainString(),
+                hashAnterior);
+        return Sha256.hex(contenido);
+    }
+
+    private void verificarSerieDeEmpresa(UUID empresaId, UUID serieId) {
+        serieFacturacionRepository.findByIdAndEmpresaId(serieId, empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Serie de facturacion no encontrada: " + serieId));
+    }
+
+    private Factura buscarPorIdYSerie(UUID facturaId, UUID serieId) {
+        return facturaRepository.findByIdAndSerieId(facturaId, serieId)
+                .orElseThrow(() -> new ResourceNotFoundException("Factura no encontrada: " + facturaId));
+    }
+
+    private List<LineaFacturaResponse> lineasDe(UUID facturaId) {
+        return lineaFacturaRepository.findByFacturaId(facturaId).stream().map(LineaFacturaResponse::of).toList();
+    }
+}
