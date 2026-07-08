@@ -4,7 +4,6 @@ import com.enlaza.cliente.Cliente;
 import com.enlaza.cliente.ClienteRepository;
 import com.enlaza.common.exception.BusinessRuleException;
 import com.enlaza.common.exception.ResourceNotFoundException;
-import com.enlaza.common.hash.Sha256;
 import com.enlaza.empresa.Empresa;
 import com.enlaza.empresa.EmpresaService;
 import com.enlaza.factura.dto.FacturaRequest;
@@ -77,7 +76,7 @@ public class FacturaService {
         int numero = serie.getUltimoNumero() + 1;
         Instant fechaEmision = Instant.now();
         String hashAnterior = serie.getUltimoHash();
-        String hashActual = calcularHash(serieId, numero, fechaEmision, cliente.getId(),
+        String hashActual = FacturaHashCalculator.calcular(serieId, numero, fechaEmision, cliente.getId(),
                 baseImponible, totalIva, totalIrpf, total, lineas, hashAnterior);
 
         Factura factura = Factura.builder()
@@ -131,6 +130,22 @@ public class FacturaService {
         return construirRespuestas(facturaRepository.findByClienteIdOrderByFechaEmisionDesc(usuario.getClienteId()));
     }
 
+    /**
+     * Igual que listarPorUsuarioCliente pero para una unica factura (usada
+     * por la exportacion a PDF del portal CLIENTE). Un facturaId que existe
+     * pero pertenece a otro cliente se trata igual que uno inexistente
+     * (ResourceNotFoundException -> 404), para no filtrar por el codigo de
+     * error si una factura ajena existe.
+     */
+    public FacturaResponse obtenerParaUsuarioCliente(UUID facturaId, UUID usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + usuarioId));
+        Factura factura = facturaRepository.findById(facturaId)
+                .filter(f -> f.getClienteId().equals(usuario.getClienteId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Factura no encontrada: " + facturaId));
+        return FacturaResponse.of(factura, lineasDe(facturaId));
+    }
+
     @Transactional
     public FacturaResponse anular(UUID empresaId, UUID serieId, UUID facturaId) {
         verificarSerieDeEmpresa(empresaId, serieId);
@@ -178,40 +193,6 @@ public class FacturaService {
         return facturas.stream()
                 .map(f -> FacturaResponse.of(f, lineasPorFactura.getOrDefault(f.getId(), List.of())))
                 .toList();
-    }
-
-    /**
-     * Incluye baseImponible/totalIva/totalIrpf y el contenido de cada linea
-     * (no solo el total): dos facturas con el mismo total pero distinta
-     * composicion fiscal o distintas lineas deben producir hashes distintos,
-     * o alterar una linea directamente en la base de datos sin tocar el
-     * total pasaria desapercibido para la cadena de integridad.
-     */
-    private String calcularHash(UUID serieId, int numero, Instant fechaEmision, UUID clienteId,
-                                 BigDecimal baseImponible, BigDecimal totalIva, BigDecimal totalIrpf, BigDecimal total,
-                                 List<LineaFactura> lineas, String hashAnterior) {
-        String lineasContenido = lineas.stream()
-                .map(l -> String.join(":",
-                        l.getDescripcion(),
-                        l.getCantidad().toPlainString(),
-                        l.getPrecioUnitario().toPlainString(),
-                        l.getPorcentajeIva().toPlainString(),
-                        l.getPorcentajeIrpf().toPlainString(),
-                        l.getImporteTotal().toPlainString()))
-                .collect(Collectors.joining(";"));
-
-        String contenido = String.join("|",
-                serieId.toString(),
-                String.valueOf(numero),
-                fechaEmision.toString(),
-                clienteId.toString(),
-                baseImponible.toPlainString(),
-                totalIva.toPlainString(),
-                totalIrpf.toPlainString(),
-                total.toPlainString(),
-                lineasContenido,
-                hashAnterior);
-        return Sha256.hex(contenido);
     }
 
     private void verificarSerieDeEmpresa(UUID empresaId, UUID serieId) {
