@@ -2,6 +2,7 @@ package com.enlaza.factura;
 
 import com.enlaza.factura.dto.FacturaRequest;
 import com.enlaza.factura.dto.FacturaResponse;
+import com.enlaza.factura.dto.SerieVerificacionResponse;
 import com.enlaza.security.EnlazaUserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ import java.util.UUID;
 public class FacturaController {
 
     private final FacturaService facturaService;
+    private final SerieVerificacionService serieVerificacionService;
 
     @PostMapping
     @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
@@ -52,6 +54,17 @@ public class FacturaController {
     @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
     public ResponseEntity<List<FacturaResponse>> listar(@PathVariable UUID empresaId, @PathVariable UUID serieId) {
         return ResponseEntity.ok(facturaService.listar(empresaId, serieId));
+    }
+
+    /**
+     * Mapeada ANTES de /{facturaId}: Spring da prioridad a un segmento
+     * literal ("/verificacion") sobre una plantilla de variable de ruta
+     * cuando ambas podrian coincidir, asi que no colisiona con obtener().
+     */
+    @GetMapping("/verificacion")
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<SerieVerificacionResponse> verificar(@PathVariable UUID empresaId, @PathVariable UUID serieId) {
+        return ResponseEntity.ok(serieVerificacionService.verificar(empresaId, serieId));
     }
 
     @GetMapping("/{facturaId}")
