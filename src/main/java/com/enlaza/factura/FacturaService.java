@@ -67,7 +67,14 @@ public class FacturaService {
             throw new BusinessRuleException("No se pueden emitir facturas en una serie desactivada");
         }
 
-        List<LineaFactura> lineas = request.lineas().stream().map(this::calcularLinea).toList();
+        List<LineaFacturaRequest> lineasRequest = request.lineas();
+        List<LineaFactura> lineas = java.util.stream.IntStream.range(0, lineasRequest.size())
+                .mapToObj(i -> {
+                    LineaFactura linea = calcularLinea(lineasRequest.get(i));
+                    linea.setOrden(i);
+                    return linea;
+                })
+                .toList();
         BigDecimal baseImponible = sumar(lineas, LineaFactura::getImporteBase);
         BigDecimal totalIva = sumar(lineas, LineaFactura::getImporteIva);
         BigDecimal totalIrpf = sumar(lineas, LineaFactura::getImporteIrpf);
@@ -185,7 +192,7 @@ public class FacturaService {
 
     private List<FacturaResponse> construirRespuestas(List<Factura> facturas) {
         Map<UUID, List<LineaFacturaResponse>> lineasPorFactura = lineaFacturaRepository
-                .findByFacturaIdIn(facturas.stream().map(Factura::getId).toList())
+                .findByFacturaIdInOrderByFacturaIdAscOrdenAsc(facturas.stream().map(Factura::getId).toList())
                 .stream()
                 .collect(Collectors.groupingBy(LineaFactura::getFacturaId,
                         Collectors.mapping(LineaFacturaResponse::of, Collectors.toList())));
@@ -206,6 +213,7 @@ public class FacturaService {
     }
 
     private List<LineaFacturaResponse> lineasDe(UUID facturaId) {
-        return lineaFacturaRepository.findByFacturaId(facturaId).stream().map(LineaFacturaResponse::of).toList();
+        return lineaFacturaRepository.findByFacturaIdOrderByOrdenAsc(facturaId).stream()
+                .map(LineaFacturaResponse::of).toList();
     }
 }
