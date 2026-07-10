@@ -81,7 +81,15 @@ public class FacturaService {
         BigDecimal total = sumar(lineas, LineaFactura::getImporteTotal);
 
         int numero = serie.getUltimoNumero() + 1;
-        Instant fechaEmision = Instant.now();
+        // Truncado a milisegundos: la columna fecha_emision es TIMESTAMP
+        // (precision de microsegundos en Postgres). Sin truncar, un
+        // Instant.now() con nanosegundos no nulos se guarda con perdida de
+        // precision -- al releerlo para verificar la cadena, su toString()
+        // cambia respecto al valor usado para calcular hashActual, y la
+        // verificacion (Fase 6) marcaria una factura intacta como
+        // manipulada. Truncar ANTES de hashear garantiza que el valor
+        // persistido y el usado en el hash sean siempre el mismo.
+        Instant fechaEmision = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
         String hashAnterior = serie.getUltimoHash();
         String hashActual = FacturaHashCalculator.calcular(serieId, numero, fechaEmision, cliente.getId(),
                 baseImponible, totalIva, totalIrpf, total, lineas, hashAnterior);
@@ -166,19 +174,31 @@ public class FacturaService {
     }
 
     private LineaFactura calcularLinea(LineaFacturaRequest request) {
-        BigDecimal importeBase = request.cantidad().multiply(request.precioUnitario()).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal importeIva = importeBase.multiply(request.porcentajeIva())
+        // cantidad/precioUnitario/porcentajeIva/porcentajeIrpf se normalizan
+        // a la misma escala (2 decimales) que sus columnas NUMERIC antes de
+        // usarse en el hash: si se guardara la escala cruda del request (p.
+        // ej. BigDecimal.ONE -> "1"), Postgres persiste igualmente con
+        // escala 2 y una relectura para verificar devolveria "1.00" ->
+        // toPlainString() distinto -> la verificacion (Fase 6) marcaria una
+        // factura intacta como manipulada.
+        BigDecimal cantidad = request.cantidad().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal precioUnitario = request.precioUnitario().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal porcentajeIva = request.porcentajeIva().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal porcentajeIrpf = request.porcentajeIrpf().setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal importeBase = cantidad.multiply(precioUnitario).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal importeIva = importeBase.multiply(porcentajeIva)
                 .divide(CIEN, 2, RoundingMode.HALF_UP);
-        BigDecimal importeIrpf = importeBase.multiply(request.porcentajeIrpf())
+        BigDecimal importeIrpf = importeBase.multiply(porcentajeIrpf)
                 .divide(CIEN, 2, RoundingMode.HALF_UP);
         BigDecimal importeTotal = importeBase.add(importeIva).subtract(importeIrpf);
 
         return LineaFactura.builder()
                 .descripcion(request.descripcion())
-                .cantidad(request.cantidad())
-                .precioUnitario(request.precioUnitario())
-                .porcentajeIva(request.porcentajeIva())
-                .porcentajeIrpf(request.porcentajeIrpf())
+                .cantidad(cantidad)
+                .precioUnitario(precioUnitario)
+                .porcentajeIva(porcentajeIva)
+                .porcentajeIrpf(porcentajeIrpf)
                 .importeBase(importeBase)
                 .importeIva(importeIva)
                 .importeIrpf(importeIrpf)
