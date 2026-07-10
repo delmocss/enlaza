@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Factura</title>
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #1a1a1a; }
+        h1 { font-size: 20px; margin: 0 0 4px 0; }
+        .cabecera { width: 100%; margin-bottom: 20px; }
+        .cabecera td { vertical-align: top; }
+        .bloque h2 { font-size: 11px; text-transform: uppercase; color: #666; margin: 0 0 4px 0; }
+        table.datos { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        table.datos th, table.datos td { border-bottom: 1px solid #ddd; padding: 6px 4px; text-align: right; }
+        table.datos th:first-child, table.datos td:first-child { text-align: left; }
+        table.totales { width: 45%; margin-left: 55%; margin-top: 12px; }
+        table.totales td { border: none; padding: 3px 4px; text-align: right; }
+        table.totales td:first-child { text-align: left; }
+        .total-final td { font-weight: bold; font-size: 13px; border-top: 1px solid #1a1a1a; }
+        .hash { margin-top: 32px; font-size: 8px; color: #888; word-wrap: break-word; border-top: 1px solid #ddd; padding-top: 8px; }
+        .anulada { color: #b00020; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <table class="cabecera">
+        <tr>
+            <td style="width: 55%;">
+                <h1 th:text="${empresa.razonSocial}">Empresa</h1>
+                <div th:text="'NIF: ' + ${empresa.nif}">NIF</div>
+                <div th:text="${empresa.direccion}">Direccion</div>
+            </td>
+            <td style="width: 45%; text-align: right;">
+                <h2 style="margin: 0;">Factura</h2>
+                <div th:text="${serie.codigo} + '-' + ${factura.numero}">Numero</div>
+                <div th:text="${fechaEmisionFormateada}">Fecha</div>
+                <div th:if="${factura.estado.name() == 'ANULADA'}" class="anulada">ANULADA</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="bloque">
+        <h2>Cliente</h2>
+        <div th:text="${cliente.nombre}">Cliente</div>
+        <div th:text="'NIF: ' + ${cliente.nif}">NIF</div>
+        <div th:text="${cliente.direccion}">Direccion</div>
+    </div>
+
+    <table class="datos">
+        <thead>
+            <tr>
+                <th>Descripcion</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>IVA %</th>
+                <th>IRPF %</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="linea : ${factura.lineas}">
+                <td th:text="${linea.descripcion}">Descripcion</td>
+                <td th:text="${linea.cantidad}">0</td>
+                <td th:text="${linea.precioUnitario}">0</td>
+                <td th:text="${linea.porcentajeIva}">0</td>
+                <td th:text="${linea.porcentajeIrpf}">0</td>
+                <td th:text="${linea.importeTotal}">0</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="totales">
+        <tr><td>Base imponible</td><td th:text="${factura.baseImponible}">0</td></tr>
+        <tr><td>IVA</td><td th:text="${factura.totalIva}">0</td></tr>
+        <tr><td>IRPF</td><td th:text="'-' + ${factura.totalIrpf}">0</td></tr>
+        <tr class="total-final"><td>Total</td><td th:text="${factura.total}">0</td></tr>
+    </table>
+
+    <div class="hash">
+        <div>Hash anterior: <span th:text="${factura.hashAnterior}">-</span></div>
+        <div>Hash de esta factura: <span th:text="${factura.hashActual}">-</span></div>
+    </div>
+</body>
+</html>

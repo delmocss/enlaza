@@ -4,7 +4,6 @@ import com.enlaza.cliente.Cliente;
 import com.enlaza.cliente.ClienteRepository;
 import com.enlaza.common.exception.BusinessRuleException;
 import com.enlaza.common.exception.ResourceNotFoundException;
-import com.enlaza.common.hash.Sha256;
 import com.enlaza.empresa.Empresa;
 import com.enlaza.empresa.EmpresaService;
 import com.enlaza.factura.dto.FacturaRequest;
@@ -68,16 +67,31 @@ public class FacturaService {
             throw new BusinessRuleException("No se pueden emitir facturas en una serie desactivada");
         }
 
-        List<LineaFactura> lineas = request.lineas().stream().map(this::calcularLinea).toList();
+        List<LineaFacturaRequest> lineasRequest = request.lineas();
+        List<LineaFactura> lineas = java.util.stream.IntStream.range(0, lineasRequest.size())
+                .mapToObj(i -> {
+                    LineaFactura linea = calcularLinea(lineasRequest.get(i));
+                    linea.setOrden(i);
+                    return linea;
+                })
+                .toList();
         BigDecimal baseImponible = sumar(lineas, LineaFactura::getImporteBase);
         BigDecimal totalIva = sumar(lineas, LineaFactura::getImporteIva);
         BigDecimal totalIrpf = sumar(lineas, LineaFactura::getImporteIrpf);
         BigDecimal total = sumar(lineas, LineaFactura::getImporteTotal);
 
         int numero = serie.getUltimoNumero() + 1;
-        Instant fechaEmision = Instant.now();
+        // Truncado a milisegundos: la columna fecha_emision es TIMESTAMP
+        // (precision de microsegundos en Postgres). Sin truncar, un
+        // Instant.now() con nanosegundos no nulos se guarda con perdida de
+        // precision -- al releerlo para verificar la cadena, su toString()
+        // cambia respecto al valor usado para calcular hashActual, y la
+        // verificacion (Fase 6) marcaria una factura intacta como
+        // manipulada. Truncar ANTES de hashear garantiza que el valor
+        // persistido y el usado en el hash sean siempre el mismo.
+        Instant fechaEmision = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
         String hashAnterior = serie.getUltimoHash();
-        String hashActual = calcularHash(serieId, numero, fechaEmision, cliente.getId(),
+        String hashActual = FacturaHashCalculator.calcular(serieId, numero, fechaEmision, cliente.getId(),
                 baseImponible, totalIva, totalIrpf, total, lineas, hashAnterior);
 
         Factura factura = Factura.builder()
@@ -131,6 +145,22 @@ public class FacturaService {
         return construirRespuestas(facturaRepository.findByClienteIdOrderByFechaEmisionDesc(usuario.getClienteId()));
     }
 
+    /**
+     * Igual que listarPorUsuarioCliente pero para una unica factura (usada
+     * por la exportacion a PDF del portal CLIENTE). Un facturaId que existe
+     * pero pertenece a otro cliente se trata igual que uno inexistente
+     * (ResourceNotFoundException -> 404), para no filtrar por el codigo de
+     * error si una factura ajena existe.
+     */
+    public FacturaResponse obtenerParaUsuarioCliente(UUID facturaId, UUID usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado: " + usuarioId));
+        Factura factura = facturaRepository.findById(facturaId)
+                .filter(f -> f.getClienteId().equals(usuario.getClienteId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Factura no encontrada: " + facturaId));
+        return FacturaResponse.of(factura, lineasDe(facturaId));
+    }
+
     @Transactional
     public FacturaResponse anular(UUID empresaId, UUID serieId, UUID facturaId) {
         verificarSerieDeEmpresa(empresaId, serieId);
@@ -144,19 +174,37 @@ public class FacturaService {
     }
 
     private LineaFactura calcularLinea(LineaFacturaRequest request) {
-        BigDecimal importeBase = request.cantidad().multiply(request.precioUnitario()).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal importeIva = importeBase.multiply(request.porcentajeIva())
+        // cantidad/precioUnitario/porcentajeIva/porcentajeIrpf se normalizan
+        // a la misma escala (2 decimales) que sus columnas NUMERIC antes de
+        // usarse en el hash: si se guardara la escala cruda del request (p.
+        // ej. BigDecimal.ONE -> "1"), Postgres persiste igualmente con
+        // escala 2 y una relectura para verificar devolveria "1.00" ->
+        // toPlainString() distinto -> la verificacion (Fase 6) marcaria una
+        // factura intacta como manipulada.
+        // Este setScale(2) es un simple relleno de ceros, NUNCA un redondeo
+        // real que altere el valor: LineaFacturaRequest ya exige
+        // @Digits(fraction = 2), asi que ningun valor con mas de 2
+        // decimales llega hasta aqui (evita una regresion de doble
+        // redondeo si se calculara importeBase a partir de estos valores
+        // ya truncados en vez de los del request).
+        BigDecimal cantidad = request.cantidad().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal precioUnitario = request.precioUnitario().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal porcentajeIva = request.porcentajeIva().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal porcentajeIrpf = request.porcentajeIrpf().setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal importeBase = cantidad.multiply(precioUnitario).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal importeIva = importeBase.multiply(porcentajeIva)
                 .divide(CIEN, 2, RoundingMode.HALF_UP);
-        BigDecimal importeIrpf = importeBase.multiply(request.porcentajeIrpf())
+        BigDecimal importeIrpf = importeBase.multiply(porcentajeIrpf)
                 .divide(CIEN, 2, RoundingMode.HALF_UP);
         BigDecimal importeTotal = importeBase.add(importeIva).subtract(importeIrpf);
 
         return LineaFactura.builder()
                 .descripcion(request.descripcion())
-                .cantidad(request.cantidad())
-                .precioUnitario(request.precioUnitario())
-                .porcentajeIva(request.porcentajeIva())
-                .porcentajeIrpf(request.porcentajeIrpf())
+                .cantidad(cantidad)
+                .precioUnitario(precioUnitario)
+                .porcentajeIva(porcentajeIva)
+                .porcentajeIrpf(porcentajeIrpf)
                 .importeBase(importeBase)
                 .importeIva(importeIva)
                 .importeIrpf(importeIrpf)
@@ -170,7 +218,7 @@ public class FacturaService {
 
     private List<FacturaResponse> construirRespuestas(List<Factura> facturas) {
         Map<UUID, List<LineaFacturaResponse>> lineasPorFactura = lineaFacturaRepository
-                .findByFacturaIdIn(facturas.stream().map(Factura::getId).toList())
+                .findByFacturaIdInOrderByFacturaIdAscOrdenAsc(facturas.stream().map(Factura::getId).toList())
                 .stream()
                 .collect(Collectors.groupingBy(LineaFactura::getFacturaId,
                         Collectors.mapping(LineaFacturaResponse::of, Collectors.toList())));
@@ -178,40 +226,6 @@ public class FacturaService {
         return facturas.stream()
                 .map(f -> FacturaResponse.of(f, lineasPorFactura.getOrDefault(f.getId(), List.of())))
                 .toList();
-    }
-
-    /**
-     * Incluye baseImponible/totalIva/totalIrpf y el contenido de cada linea
-     * (no solo el total): dos facturas con el mismo total pero distinta
-     * composicion fiscal o distintas lineas deben producir hashes distintos,
-     * o alterar una linea directamente en la base de datos sin tocar el
-     * total pasaria desapercibido para la cadena de integridad.
-     */
-    private String calcularHash(UUID serieId, int numero, Instant fechaEmision, UUID clienteId,
-                                 BigDecimal baseImponible, BigDecimal totalIva, BigDecimal totalIrpf, BigDecimal total,
-                                 List<LineaFactura> lineas, String hashAnterior) {
-        String lineasContenido = lineas.stream()
-                .map(l -> String.join(":",
-                        l.getDescripcion(),
-                        l.getCantidad().toPlainString(),
-                        l.getPrecioUnitario().toPlainString(),
-                        l.getPorcentajeIva().toPlainString(),
-                        l.getPorcentajeIrpf().toPlainString(),
-                        l.getImporteTotal().toPlainString()))
-                .collect(Collectors.joining(";"));
-
-        String contenido = String.join("|",
-                serieId.toString(),
-                String.valueOf(numero),
-                fechaEmision.toString(),
-                clienteId.toString(),
-                baseImponible.toPlainString(),
-                totalIva.toPlainString(),
-                totalIrpf.toPlainString(),
-                total.toPlainString(),
-                lineasContenido,
-                hashAnterior);
-        return Sha256.hex(contenido);
     }
 
     private void verificarSerieDeEmpresa(UUID empresaId, UUID serieId) {
@@ -225,6 +239,7 @@ public class FacturaService {
     }
 
     private List<LineaFacturaResponse> lineasDe(UUID facturaId) {
-        return lineaFacturaRepository.findByFacturaId(facturaId).stream().map(LineaFacturaResponse::of).toList();
+        return lineaFacturaRepository.findByFacturaIdOrderByOrdenAsc(facturaId).stream()
+                .map(LineaFacturaResponse::of).toList();
     }
 }

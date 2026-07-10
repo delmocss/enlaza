@@ -2,7 +2,7 @@ package com.enlaza.serie;
 
 import com.enlaza.common.exception.BusinessRuleException;
 import com.enlaza.common.exception.ResourceNotFoundException;
-import com.enlaza.common.hash.Sha256;
+import com.enlaza.common.hash.GenesisHash;
 import com.enlaza.empresa.Empresa;
 import com.enlaza.empresa.EmpresaService;
 import com.enlaza.serie.dto.SerieFacturacionRequest;
@@ -17,14 +17,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class SerieFacturacionService {
-
-    /**
-     * Semilla de la cadena de hashes de una serie nueva: SHA-256 de una
-     * cadena fija, no de datos de negocio (la primera factura real de la
-     * serie enlazara contra este valor como su hashAnterior -- ver D6/D10
-     * del modelo de datos).
-     */
-    private static final String GENESIS_SEED = "ENLAZA-GENESIS";
 
     private final SerieFacturacionRepository serieFacturacionRepository;
     private final EmpresaService empresaService;
@@ -44,7 +36,7 @@ public class SerieFacturacionService {
                 .empresaId(empresaId)
                 .codigo(request.codigo())
                 .ultimoNumero(0)
-                .ultimoHash(Sha256.hex(GENESIS_SEED))
+                .ultimoHash(GenesisHash.value())
                 .activa(true)
                 .build();
 

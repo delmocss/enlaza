@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public interface LineaFacturaRepository extends JpaRepository<LineaFactura, UUID> {
 
-    List<LineaFactura> findByFacturaId(UUID facturaId);
+    List<LineaFactura> findByFacturaIdOrderByOrdenAsc(UUID facturaId);
 
-    List<LineaFactura> findByFacturaIdIn(List<UUID> facturaIds);
+    List<LineaFactura> findByFacturaIdInOrderByFacturaIdAscOrdenAsc(List<UUID> facturaIds);
 }

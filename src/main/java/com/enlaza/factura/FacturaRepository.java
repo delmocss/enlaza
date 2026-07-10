@@ -10,6 +10,8 @@ public interface FacturaRepository extends JpaRepository<Factura, UUID> {
 
     List<Factura> findBySerieId(UUID serieId);
 
+    List<Factura> findBySerieIdOrderByNumeroAsc(UUID serieId);
+
     Optional<Factura> findByIdAndSerieId(UUID id, UUID serieId);
 
     List<Factura> findByClienteIdOrderByFechaEmisionDesc(UUID clienteId);

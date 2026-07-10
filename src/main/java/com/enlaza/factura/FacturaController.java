@@ -2,6 +2,8 @@ package com.enlaza.factura;
 
 import com.enlaza.factura.dto.FacturaRequest;
 import com.enlaza.factura.dto.FacturaResponse;
+import com.enlaza.factura.dto.SerieVerificacionResponse;
+import com.enlaza.factura.pdf.FacturaPdfService;
 import com.enlaza.security.EnlazaUserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,8 @@ import java.util.UUID;
 public class FacturaController {
 
     private final FacturaService facturaService;
+    private final SerieVerificacionService serieVerificacionService;
+    private final FacturaPdfService facturaPdfService;
 
     @PostMapping
     @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
@@ -54,11 +58,29 @@ public class FacturaController {
         return ResponseEntity.ok(facturaService.listar(empresaId, serieId));
     }
 
+    /**
+     * Mapeada ANTES de /{facturaId}: Spring da prioridad a un segmento
+     * literal ("/verificacion") sobre una plantilla de variable de ruta
+     * cuando ambas podrian coincidir, asi que no colisiona con obtener().
+     */
+    @GetMapping("/verificacion")
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<SerieVerificacionResponse> verificar(@PathVariable UUID empresaId, @PathVariable UUID serieId) {
+        return ResponseEntity.ok(serieVerificacionService.verificar(empresaId, serieId));
+    }
+
     @GetMapping("/{facturaId}")
     @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
     public ResponseEntity<FacturaResponse> obtener(
             @PathVariable UUID empresaId, @PathVariable UUID serieId, @PathVariable UUID facturaId) {
         return ResponseEntity.ok(facturaService.obtener(empresaId, serieId, facturaId));
+    }
+
+    @GetMapping("/{facturaId}/pdf")
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<byte[]> pdf(
+            @PathVariable UUID empresaId, @PathVariable UUID serieId, @PathVariable UUID facturaId) {
+        return facturaPdfService.generar(empresaId, serieId, facturaId).comoDescarga();
     }
 
     @PatchMapping("/{facturaId}/anular")
