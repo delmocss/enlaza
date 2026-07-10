@@ -1,12 +1,9 @@
 package com.enlaza.factura;
 
 import com.enlaza.factura.dto.FacturaResponse;
-import com.enlaza.factura.pdf.FacturaPdf;
 import com.enlaza.factura.pdf.FacturaPdfService;
 import com.enlaza.security.EnlazaUserPrincipal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,10 +37,6 @@ public class MisFacturasController {
     @GetMapping("/{facturaId}/pdf")
     public ResponseEntity<byte[]> pdf(
             @AuthenticationPrincipal EnlazaUserPrincipal principal, @PathVariable UUID facturaId) {
-        FacturaPdf pdf = facturaPdfService.generarParaUsuarioCliente(facturaId, principal.getId());
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + pdf.nombreArchivo() + "\"")
-                .body(pdf.contenido());
+        return facturaPdfService.generarParaUsuarioCliente(facturaId, principal.getId()).comoDescarga();
     }
 }

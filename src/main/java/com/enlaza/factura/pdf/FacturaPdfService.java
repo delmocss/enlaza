@@ -49,26 +49,27 @@ public class FacturaPdfService {
 
     public FacturaPdf generar(UUID empresaId, UUID serieId, UUID facturaId) {
         FacturaResponse factura = facturaService.obtener(empresaId, serieId, facturaId);
-        SerieFacturacion serie = buscarSerie(serieId);
-        Empresa empresa = empresaService.buscarPorId(empresaId);
-        return renderizar(factura, empresa, serie);
+        SerieFacturacion serie = buscarSerieDeEmpresa(serieId, empresaId);
+        return renderizar(factura, serie);
     }
 
     /**
      * Portal CLIENTE: la autorizacion ya la resolvio
      * FacturaService.obtenerParaUsuarioCliente (por Usuario.clienteId, no
      * por asignacion de Empresa), asi que aqui solo falta resolver la
-     * Empresa/Serie para mostrarlas en el documento.
+     * Serie/Empresa/Cliente para mostrarlos en el documento. No hay un
+     * empresaId propio con el que acotar la busqueda de la serie -- serieId
+     * viene de una FacturaResponse ya autorizada, no de un input externo.
      */
     public FacturaPdf generarParaUsuarioCliente(UUID facturaId, UUID usuarioId) {
         FacturaResponse factura = facturaService.obtenerParaUsuarioCliente(facturaId, usuarioId);
         SerieFacturacion serie = buscarSerie(factura.serieId());
-        Empresa empresa = empresaService.buscarPorId(serie.getEmpresaId());
-        return renderizar(factura, empresa, serie);
+        return renderizar(factura, serie);
     }
 
-    private FacturaPdf renderizar(FacturaResponse factura, Empresa empresa, SerieFacturacion serie) {
-        Cliente cliente = clienteRepository.findById(factura.clienteId())
+    private FacturaPdf renderizar(FacturaResponse factura, SerieFacturacion serie) {
+        Empresa empresa = empresaService.buscarPorId(serie.getEmpresaId());
+        Cliente cliente = clienteRepository.findByIdAndEmpresaId(factura.clienteId(), serie.getEmpresaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado: " + factura.clienteId()));
 
         Context context = new Context();
@@ -93,6 +94,11 @@ public class FacturaPdfService {
 
         String nombreArchivo = "factura-%s-%d.pdf".formatted(serie.getCodigo(), factura.numero());
         return new FacturaPdf(salida.toByteArray(), nombreArchivo);
+    }
+
+    private SerieFacturacion buscarSerieDeEmpresa(UUID serieId, UUID empresaId) {
+        return serieFacturacionRepository.findByIdAndEmpresaId(serieId, empresaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Serie de facturacion no encontrada: " + serieId));
     }
 
     private SerieFacturacion buscarSerie(UUID serieId) {
