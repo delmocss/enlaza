@@ -3,10 +3,14 @@ package com.enlaza.factura;
 import com.enlaza.factura.dto.FacturaRequest;
 import com.enlaza.factura.dto.FacturaResponse;
 import com.enlaza.factura.dto.SerieVerificacionResponse;
+import com.enlaza.factura.pdf.FacturaPdf;
+import com.enlaza.factura.pdf.FacturaPdfService;
 import com.enlaza.security.EnlazaUserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,6 +41,7 @@ public class FacturaController {
 
     private final FacturaService facturaService;
     private final SerieVerificacionService serieVerificacionService;
+    private final FacturaPdfService facturaPdfService;
 
     @PostMapping
     @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
@@ -72,6 +77,17 @@ public class FacturaController {
     public ResponseEntity<FacturaResponse> obtener(
             @PathVariable UUID empresaId, @PathVariable UUID serieId, @PathVariable UUID facturaId) {
         return ResponseEntity.ok(facturaService.obtener(empresaId, serieId, facturaId));
+    }
+
+    @GetMapping("/{facturaId}/pdf")
+    @PreAuthorize("@empresaAccessService.tieneAcceso(authentication, #empresaId)")
+    public ResponseEntity<byte[]> pdf(
+            @PathVariable UUID empresaId, @PathVariable UUID serieId, @PathVariable UUID facturaId) {
+        FacturaPdf pdf = facturaPdfService.generar(empresaId, serieId, facturaId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + pdf.nombreArchivo() + "\"")
+                .body(pdf.contenido());
     }
 
     @PatchMapping("/{facturaId}/anular")
