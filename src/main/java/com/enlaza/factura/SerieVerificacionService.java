@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,12 +27,28 @@ public class SerieVerificacionService {
      * Se detiene en la primera rotura encontrada: ya demuestra el objetivo
      * (detectar manipulacion) sin necesidad de listar todas las facturas
      * afectadas.
+     *
+     * Limitacion conocida: esta formula (y su normalizacion de escala de
+     * BigDecimal / precision de Instant) solo es valida hacia adelante.
+     * Una Factura persistida con una version anterior de calcularLinea()
+     * (antes de esa normalizacion) recalcularia un hash distinto al
+     * guardado, no porque haya sido manipulada sino porque la formula
+     * cambio -- no existe (ni es seguro añadir) una migracion que
+     * recalcule hashes historicos, porque no habria forma de distinguir
+     * "cambio de formula" de "manipulacion real" en datos ya persistidos.
+     * En un entorno con Factura anteriores a este fix, hay que partir de
+     * una base de datos limpia (reseed) para que la verificacion sea
+     * fiable.
      */
     public SerieVerificacionResponse verificar(UUID empresaId, UUID serieId) {
         serieFacturacionRepository.findByIdAndEmpresaId(serieId, empresaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Serie de facturacion no encontrada: " + serieId));
 
         List<Factura> facturas = facturaRepository.findBySerieIdOrderByNumeroAsc(serieId);
+        Map<UUID, List<LineaFactura>> lineasPorFactura = lineaFacturaRepository
+                .findByFacturaIdInOrderByFacturaIdAscOrdenAsc(facturas.stream().map(Factura::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(LineaFactura::getFacturaId));
         String hashEsperado = FacturaHashCalculator.genesis();
 
         for (Factura factura : facturas) {
@@ -39,7 +57,7 @@ public class SerieVerificacionService {
                         "hashAnterior no coincide con el hash de la factura previa en la cadena");
             }
 
-            List<LineaFactura> lineas = lineaFacturaRepository.findByFacturaIdOrderByOrdenAsc(factura.getId());
+            List<LineaFactura> lineas = lineasPorFactura.getOrDefault(factura.getId(), List.of());
             String hashRecalculado = FacturaHashCalculator.calcular(
                     factura.getSerieId(), factura.getNumero(), factura.getFechaEmision(), factura.getClienteId(),
                     factura.getBaseImponible(), factura.getTotalIva(), factura.getTotalIrpf(), factura.getTotal(),
