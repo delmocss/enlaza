@@ -181,6 +181,12 @@ public class FacturaService {
         // escala 2 y una relectura para verificar devolveria "1.00" ->
         // toPlainString() distinto -> la verificacion (Fase 6) marcaria una
         // factura intacta como manipulada.
+        // Este setScale(2) es un simple relleno de ceros, NUNCA un redondeo
+        // real que altere el valor: LineaFacturaRequest ya exige
+        // @Digits(fraction = 2), asi que ningun valor con mas de 2
+        // decimales llega hasta aqui (evita una regresion de doble
+        // redondeo si se calculara importeBase a partir de estos valores
+        // ya truncados en vez de los del request).
         BigDecimal cantidad = request.cantidad().setScale(2, RoundingMode.HALF_UP);
         BigDecimal precioUnitario = request.precioUnitario().setScale(2, RoundingMode.HALF_UP);
         BigDecimal porcentajeIva = request.porcentajeIva().setScale(2, RoundingMode.HALF_UP);
