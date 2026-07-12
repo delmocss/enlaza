@@ -109,6 +109,45 @@ class EmpresaScopedAccessIT extends AbstractIntegrationTest {
         assertThat(obtener.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
+    /** ClienteController.actualizar (PUT) no tenia ningun test. */
+    @Test
+    void actualizarCliente_cambiaLosCampos() {
+        ClienteResponse creado = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/clientes", HttpMethod.POST,
+                authenticated(contableToken, nuevoClienteRequest()), ClienteResponse.class).getBody();
+
+        ClienteRequest actualizacion = new ClienteRequest("Nombre Actualizado", creado.nif(), "Calle Nueva 1", "nuevo@test.enlaza.dev");
+        ResponseEntity<ClienteResponse> actualizado = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/clientes/" + creado.id(), HttpMethod.PUT,
+                authenticated(contableToken, actualizacion), ClienteResponse.class);
+
+        assertThat(actualizado.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(actualizado.getBody().nombre()).isEqualTo("Nombre Actualizado");
+        assertThat(actualizado.getBody().direccion()).isEqualTo("Calle Nueva 1");
+    }
+
+    /**
+     * FacturaControllerIT.eliminarCliente_conFacturasExistentes_devuelve409NoOpaco500
+     * cubre el camino de conflicto; faltaba el camino feliz de un cliente
+     * sin facturas que se borra sin problema.
+     */
+    @Test
+    void eliminarCliente_sinFacturas_devuelve204() {
+        UUID clienteId = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/clientes", HttpMethod.POST,
+                authenticated(contableToken, nuevoClienteRequest()), ClienteResponse.class).getBody().id();
+
+        ResponseEntity<Void> eliminado = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/clientes/" + clienteId, HttpMethod.DELETE,
+                authenticated(contableToken), Void.class);
+        assertThat(eliminado.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        ResponseEntity<String> obtenerTrasBorrar = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/clientes/" + clienteId, HttpMethod.GET,
+                authenticated(contableToken), String.class);
+        assertThat(obtenerTrasBorrar.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     @Test
     void crearCliente_enEmpresaDesactivada_devuelve409() {
         restTemplate.exchange(
@@ -168,6 +207,35 @@ class EmpresaScopedAccessIT extends AbstractIntegrationTest {
                 "/api/empresas/" + empresaNoAsignada + "/series/" + serieId + "/desactivar", HttpMethod.PATCH,
                 authenticated(contableToken), String.class);
         assertThat(desactivar.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        ResponseEntity<String> activar = restTemplate.exchange(
+                "/api/empresas/" + empresaNoAsignada + "/series/" + serieId + "/activar", HttpMethod.PATCH,
+                authenticated(contableToken), String.class);
+        assertThat(activar.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    /**
+     * SerieFacturacionController.activar no tenia ningun test: se probaba
+     * desactivar pero nunca el camino inverso (una serie desactivada que
+     * vuelve a quedar operativa para emitir facturas).
+     */
+    @Test
+    void activarUnaSerieDesactivada_laDejaOperativaDeNuevo() {
+        UUID serieId = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/series", HttpMethod.POST,
+                authenticated(adminToken, new SerieFacturacionRequest("A")), SerieFacturacionResponse.class)
+                .getBody().id();
+
+        restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/series/" + serieId + "/desactivar", HttpMethod.PATCH,
+                authenticated(adminToken), SerieFacturacionResponse.class);
+
+        ResponseEntity<SerieFacturacionResponse> reactivada = restTemplate.exchange(
+                "/api/empresas/" + empresaAsignada + "/series/" + serieId + "/activar", HttpMethod.PATCH,
+                authenticated(adminToken), SerieFacturacionResponse.class);
+
+        assertThat(reactivada.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(reactivada.getBody().activa()).isTrue();
     }
 
     @Test
