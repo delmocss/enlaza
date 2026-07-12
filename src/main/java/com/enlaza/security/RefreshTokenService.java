@@ -1,8 +1,9 @@
 package com.enlaza.security;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -25,16 +26,33 @@ import java.util.UUID;
  * rapido evita anadir latencia innecesaria en cada refresh.
  */
 @Service
-@RequiredArgsConstructor
 public class RefreshTokenService {
 
     private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtProperties jwtProperties;
+    private final RefreshTokenService self;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public record RotationResult(UUID usuarioId, String newRawToken) {
+    }
+
+    /**
+     * self es una auto-inyeccion perezosa del propio bean: rotate() necesita
+     * invocar revokeAllForUser() A TRAVES DEL PROXY de Spring (no como
+     * this.revokeAllForUser(), una llamada directa de Java que el proxy no
+     * intercepta) para que su @Transactional(REQUIRES_NEW) surta efecto de
+     * verdad. @Lazy rompe el ciclo bean-necesita-su-propio-proxy-durante-su-
+     * propia-creacion. Unica clase del proyecto con este patron porque es la
+     * unica que necesita una sub-transaccion independiente desde dentro de
+     * si misma.
+     */
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, JwtProperties jwtProperties,
+                                @Lazy RefreshTokenService self) {
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.jwtProperties = jwtProperties;
+        this.self = self;
     }
 
     @Transactional
@@ -73,7 +91,7 @@ public class RefreshTokenService {
             // Ya estaba revocado: o bien una rotacion concurrente se adelanto,
             // o es un token viejo reutilizado tras una rotacion anterior. En
             // ambos casos se trata como robo/reutilizacion por seguridad.
-            revokeAllForUser(stored.getUsuarioId());
+            self.revokeAllForUser(stored.getUsuarioId());
             throw new BadCredentialsException("Refresh token invalido o ya utilizado");
         }
 
@@ -90,7 +108,16 @@ public class RefreshTokenService {
                 });
     }
 
-    @Transactional
+    /**
+     * REQUIRES_NEW a proposito: rotate() la llama justo antes de lanzar
+     * BadCredentialsException, y rotate() tambien es @Transactional. Sin una
+     * sub-transaccion propia que ya haya hecho commit, el rollback-on-
+     * exception de la transaccion de rotate() deshacia esta revocacion en
+     * silencio -- la respuesta de seguridad ante un token reutilizado/robado
+     * nunca llegaba a Postgres. (Requiere llamarse via el campo "self", ver
+     * su Javadoc: REQUIRES_NEW no hace nada en una self-invocation.)
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void revokeAllForUser(UUID usuarioId) {
         refreshTokenRepository.findAllByUsuarioIdAndRevokedFalse(usuarioId)
                 .forEach(token -> token.setRevoked(true));
