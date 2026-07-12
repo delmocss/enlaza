@@ -173,7 +173,13 @@ public class FacturaService {
         return FacturaResponse.of(factura, lineasDe(facturaId));
     }
 
-    private LineaFactura calcularLinea(LineaFacturaRequest request) {
+    // Paquete-privado (no private) unicamente para que FacturaServiceCalcularLineaTest
+    // pueda llamarlo sin arrancar Spring. No toca ningun repositorio/servicio
+    // inyectado, asi que un llamador de test puede construir FacturaService con
+    // dependencias null con seguridad -- pero solo debe invocarse desde crear(),
+    // que ya garantiza (via @Digits en LineaFacturaRequest) la precondicion de
+    // escala de la que depende el comentario de mas abajo.
+    LineaFactura calcularLinea(LineaFacturaRequest request) {
         // cantidad/precioUnitario/porcentajeIva/porcentajeIrpf se normalizan
         // a la misma escala (2 decimales) que sus columnas NUMERIC antes de
         // usarse en el hash: si se guardara la escala cruda del request (p.
