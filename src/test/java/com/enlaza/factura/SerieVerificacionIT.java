@@ -118,6 +118,34 @@ class SerieVerificacionIT extends AbstractIntegrationTest {
         assertThat(verificacion.facturaId()).isEqualTo(factura.id());
     }
 
+    /**
+     * SerieVerificacionService recorre la cadena de UNA serie; este test
+     * confirma que lo hace de verdad scoped a esa serie y no mezcla el
+     * recorrido con otra serie de la misma empresa que tambien tenga
+     * facturas manipuladas.
+     */
+    @Test
+    void manipularUnaSerie_noAfectaLaVerificacionDeOtraSerieDeLaMismaEmpresa() {
+        UUID otraSerieId = crear("/api/empresas/" + empresaId + "/series",
+                new SerieFacturacionRequest("B"), SerieFacturacionResponse.class).id();
+
+        crearFactura("A");
+        FacturaResponse facturaOtraSerie = crearFacturaEnSerie(otraSerieId, "Otra serie");
+
+        Factura factura = facturaRepository.findById(facturaOtraSerie.id()).orElseThrow();
+        factura.setTotal(factura.getTotal().add(BigDecimal.ONE));
+        facturaRepository.save(factura);
+
+        SerieVerificacionResponse verificacionSerieOriginal = verificar();
+        assertThat(verificacionSerieOriginal.integra()).isTrue();
+
+        ResponseEntity<SerieVerificacionResponse> verificacionOtraSerie = restTemplate.exchange(
+                "/api/empresas/" + empresaId + "/series/" + otraSerieId + "/facturas/verificacion",
+                HttpMethod.GET, authenticated(adminToken), SerieVerificacionResponse.class);
+        assertThat(verificacionOtraSerie.getBody().integra()).isFalse();
+        assertThat(verificacionOtraSerie.getBody().facturaId()).isEqualTo(facturaOtraSerie.id());
+    }
+
     private SerieVerificacionResponse verificar() {
         ResponseEntity<SerieVerificacionResponse> response = restTemplate.exchange(
                 "/api/empresas/" + empresaId + "/series/" + serieId + "/facturas/verificacion",
@@ -127,9 +155,13 @@ class SerieVerificacionIT extends AbstractIntegrationTest {
     }
 
     private FacturaResponse crearFactura(String descripcion) {
+        return crearFacturaEnSerie(serieId, descripcion);
+    }
+
+    private FacturaResponse crearFacturaEnSerie(UUID destinoSerieId, String descripcion) {
         FacturaRequest request = new FacturaRequest(clienteId, List.of(
                 new LineaFacturaRequest(descripcion, BigDecimal.ONE, new BigDecimal("10.00"), BigDecimal.ZERO, BigDecimal.ZERO)));
-        return crear("/api/empresas/" + empresaId + "/series/" + serieId + "/facturas", request, FacturaResponse.class);
+        return crear("/api/empresas/" + empresaId + "/series/" + destinoSerieId + "/facturas", request, FacturaResponse.class);
     }
 
     private <T> T crear(String url, Object body, Class<T> responseType) {

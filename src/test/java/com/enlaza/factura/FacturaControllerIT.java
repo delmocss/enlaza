@@ -117,6 +117,37 @@ class FacturaControllerIT extends AbstractIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    /**
+     * Regresion del bug de doble redondeo corregido en la Fase 6: sin el
+     * @Digits(fraction=2) en LineaFacturaRequest, un precioUnitario con 3+
+     * decimales producia un importe distinto segun se redondeara antes o
+     * despues de multiplicar. Este test confirma que la validacion de
+     * entrada ya lo bloquea con 400 antes de que llegue a calcularLinea().
+     */
+    @Test
+    void crear_conPrecioUnitarioDeMasDeDosDecimales_devuelve400() {
+        FacturaRequest request = new FacturaRequest(clienteId, List.of(
+                new LineaFacturaRequest("Servicio", BigDecimal.ONE, new BigDecimal("10.005"), BigDecimal.ZERO, BigDecimal.ZERO)));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/empresas/" + empresaId + "/series/" + serieId + "/facturas", HttpMethod.POST,
+                authenticated(adminToken, request), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void crear_conCantidadDeMasDeDosDecimales_devuelve400() {
+        FacturaRequest request = new FacturaRequest(clienteId, List.of(
+                new LineaFacturaRequest("Servicio", new BigDecimal("1.125"), new BigDecimal("10.00"), BigDecimal.ZERO, BigDecimal.ZERO)));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/empresas/" + empresaId + "/series/" + serieId + "/facturas", HttpMethod.POST,
+                authenticated(adminToken, request), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     @Test
     void crear_enSerieDesactivada_devuelve409() {
         restTemplate.exchange("/api/empresas/" + empresaId + "/series/" + serieId + "/desactivar",
