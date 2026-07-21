@@ -33,25 +33,20 @@
     </main>
 
     <script type="module">
-        import { apiFetch, ApiError } from '/common/js/apiClient.js';
-        import { requireRole } from '/common/js/session.js';
-        import { renderNav } from '/common/js/nav.js';
-        import { escapeHtml, formatDate } from '/common/js/ui.js';
+        import { apiFetch } from '/common/js/apiClient.js';
+        import { requireQueryParams } from '/common/js/session.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { escapeHtml, formatDate, confirmAndRun } from '/common/js/ui.js';
 
-        const me = await requireRole('ADMIN');
-        if (me) {
-            renderNav(me);
-            init();
-        }
+        bootstrapPage('ADMIN', init);
 
         function init() {
-            const empresaId = new URLSearchParams(window.location.search).get('empresaId');
-            const tbody = document.getElementById('contables-body');
-
-            if (!empresaId) {
-                window.location.href = '/admin/empresas.html';
+            const query = requireQueryParams(['empresaId'], '/admin/empresas.html');
+            if (!query) {
                 return;
             }
+            const { empresaId } = query;
+            const tbody = document.getElementById('contables-body');
 
             async function loadEmpresaNombre() {
                 try {
@@ -76,19 +71,15 @@
                 `).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Sin contables asignados</td></tr>';
 
                 tbody.querySelectorAll('button[data-action="quitar"]').forEach(button => {
-                    button.addEventListener('click', async () => {
+                    button.addEventListener('click', () => {
                         const usuarioId = button.closest('tr').dataset.id;
-                        if (!confirm('Quitar a este contable de la empresa?')) {
-                            return;
-                        }
-                        button.disabled = true;
-                        try {
-                            await apiFetch(`/empresas/${empresaId}/contables/${usuarioId}`, { method: 'DELETE' });
-                            await loadContables();
-                        } catch (error) {
-                            alert(error instanceof ApiError ? error.message : 'No se pudo quitar al contable');
-                            button.disabled = false;
-                        }
+                        confirmAndRun({
+                            button,
+                            confirmMessage: 'Quitar a este contable de la empresa?',
+                            action: () => apiFetch(`/empresas/${empresaId}/contables/${usuarioId}`, { method: 'DELETE' }),
+                            onSuccess: loadContables,
+                            errorFallback: 'No se pudo quitar al contable',
+                        });
                     });
                 });
             }

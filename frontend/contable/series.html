@@ -47,22 +47,18 @@
 
     <script type="module">
         import { apiFetch, ApiError } from '/common/js/apiClient.js';
-        import { requireRole } from '/common/js/session.js';
-        import { renderNav } from '/common/js/nav.js';
-        import { escapeHtml, showError } from '/common/js/ui.js';
+        import { requireQueryParams } from '/common/js/session.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { escapeHtml, showError, renderBadge, confirmAndRun } from '/common/js/ui.js';
 
-        const me = await requireRole('CONTABLE');
-        if (me) {
-            renderNav(me);
-            init();
-        }
+        bootstrapPage('CONTABLE', init);
 
         function init() {
-            const empresaId = new URLSearchParams(window.location.search).get('empresaId');
-            if (!empresaId) {
-                window.location.href = '/contable/dashboard.html';
+            const query = requireQueryParams(['empresaId'], '/contable/dashboard.html');
+            if (!query) {
                 return;
             }
+            const { empresaId } = query;
 
             const form = document.getElementById('serie-form');
             const formError = document.getElementById('form-error');
@@ -72,15 +68,11 @@
             async function loadSeries() {
                 const series = await apiFetch(`/empresas/${empresaId}/series`);
                 tbody.innerHTML = series.map(serie => {
-                    const estadoBadge = serie.activa
-                        ? '<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Activa</span>'
-                        : '<span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Inactiva</span>';
-
                     return `
                         <tr class="border-b border-slate-100 last:border-0" data-id="${serie.id}">
                             <td class="px-4 py-3">${escapeHtml(serie.codigo)}</td>
                             <td class="px-4 py-3">${serie.ultimoNumero}</td>
-                            <td class="px-4 py-3">${estadoBadge}</td>
+                            <td class="px-4 py-3">${renderBadge(serie.activa, 'Activa', 'Inactiva')}</td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap gap-3">
                                     <a href="/contable/facturas.html?empresaId=${empresaId}&serieId=${serie.id}"
@@ -97,18 +89,16 @@
                 }).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Sin series todavia</td></tr>';
 
                 tbody.querySelectorAll('button[data-action="toggle"]').forEach(button => {
-                    button.addEventListener('click', async () => {
+                    button.addEventListener('click', () => {
                         const id = button.closest('tr').dataset.id;
                         const serie = series.find(s => s.id === id);
                         const accion = serie.activa ? 'desactivar' : 'activar';
-                        button.disabled = true;
-                        try {
-                            await apiFetch(`/empresas/${empresaId}/series/${id}/${accion}`, { method: 'PATCH' });
-                            await loadSeries();
-                        } catch (error) {
-                            alert(error instanceof ApiError ? error.message : 'No se pudo actualizar la serie');
-                            button.disabled = false;
-                        }
+                        confirmAndRun({
+                            button,
+                            action: () => apiFetch(`/empresas/${empresaId}/series/${id}/${accion}`, { method: 'PATCH' }),
+                            onSuccess: loadSeries,
+                            errorFallback: 'No se pudo actualizar la serie',
+                        });
                     });
                 });
             }

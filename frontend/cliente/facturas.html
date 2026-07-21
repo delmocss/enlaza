@@ -30,32 +30,23 @@
     </main>
 
     <script type="module">
-        import { apiFetch, apiFetchBlob, ApiError } from '/common/js/apiClient.js';
-        import { requireRole } from '/common/js/session.js';
-        import { renderNav } from '/common/js/nav.js';
-        import { formatCurrency, formatDate, downloadBlob } from '/common/js/ui.js';
+        import { apiFetch, apiFetchBlob } from '/common/js/apiClient.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun } from '/common/js/ui.js';
 
-        const me = await requireRole('CLIENTE');
-        if (me) {
-            renderNav(me);
-            init();
-        }
+        bootstrapPage('CLIENTE', init);
 
         async function init() {
             const tbody = document.getElementById('facturas-body');
             const facturas = await apiFetch('/mis-facturas');
 
             tbody.innerHTML = facturas.map(factura => {
-                const estadoBadge = factura.estado === 'EMITIDA'
-                    ? '<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Emitida</span>'
-                    : '<span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Anulada</span>';
-
                 return `
                     <tr class="border-b border-slate-100 last:border-0" data-id="${factura.id}">
                         <td class="px-4 py-3">${factura.numero}</td>
                         <td class="px-4 py-3">${formatDate(factura.fechaEmision)}</td>
                         <td class="px-4 py-3">${formatCurrency(factura.total)}</td>
-                        <td class="px-4 py-3">${estadoBadge}</td>
+                        <td class="px-4 py-3">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
                         <td class="px-4 py-3">
                             <button type="button" data-action="pdf" class="text-indigo-600 hover:underline">PDF</button>
                         </td>
@@ -64,18 +55,18 @@
             }).join('') || '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Todavia no tienes facturas</td></tr>';
 
             tbody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
-                button.addEventListener('click', async () => {
+                button.addEventListener('click', () => {
                     const facturaId = button.closest('tr').dataset.id;
                     const factura = facturas.find(f => f.id === facturaId);
-                    button.disabled = true;
-                    try {
-                        const blob = await apiFetchBlob(`/mis-facturas/${facturaId}/pdf`);
-                        downloadBlob(blob, `factura-${factura.numero}.pdf`);
-                    } catch (error) {
-                        alert(error instanceof ApiError ? error.message : 'No se pudo descargar el PDF');
-                    } finally {
-                        button.disabled = false;
-                    }
+                    confirmAndRun({
+                        button,
+                        action: async () => {
+                            const blob = await apiFetchBlob(`/mis-facturas/${facturaId}/pdf`);
+                            downloadBlob(blob, `factura-${factura.numero}.pdf`);
+                        },
+                        onSuccess: () => {},
+                        errorFallback: 'No se pudo descargar el PDF',
+                    });
                 });
             });
         }

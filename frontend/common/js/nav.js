@@ -1,4 +1,5 @@
-import { logoutAndRedirect } from './session.js';
+import { requireRole, logoutAndRedirect } from './session.js';
+import { escapeHtml } from './ui.js';
 
 const LINKS_BY_ROLE = {
     ADMIN: [
@@ -40,7 +41,7 @@ export function renderNav(me) {
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <span class="text-sm text-slate-500">${me.nombre} &middot; ${me.role}</span>
+                <span class="text-sm text-slate-500">${escapeHtml(me.nombre)} &middot; ${escapeHtml(me.role)}</span>
                 <button id="logout-button" type="button"
                         class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
                     Cerrar sesion
@@ -50,4 +51,18 @@ export function renderNav(me) {
     `;
 
     document.getElementById('logout-button').addEventListener('click', logoutAndRedirect);
+}
+
+/**
+ * Arranque comun de cada pagina protegida: valida sesion+rol, pinta la
+ * cabecera y solo entonces ejecuta la logica propia de la pagina. Evita
+ * repetir "const me = await requireRole(...); if (me) { renderNav(me);
+ * init(); }" identico en cada .html.
+ */
+export async function bootstrapPage(role, init) {
+    const me = await requireRole(role);
+    if (me) {
+        renderNav(me);
+        await init();
+    }
 }

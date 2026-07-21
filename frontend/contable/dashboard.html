@@ -17,15 +17,10 @@
 
     <script type="module">
         import { apiFetch } from '/common/js/apiClient.js';
-        import { requireRole } from '/common/js/session.js';
-        import { renderNav } from '/common/js/nav.js';
+        import { bootstrapPage } from '/common/js/nav.js';
         import { escapeHtml } from '/common/js/ui.js';
 
-        const me = await requireRole('CONTABLE');
-        if (me) {
-            renderNav(me);
-            init();
-        }
+        bootstrapPage('CONTABLE', init);
 
         async function init() {
             const grid = document.getElementById('empresas-grid');

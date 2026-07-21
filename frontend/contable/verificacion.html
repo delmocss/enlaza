@@ -21,23 +21,18 @@
 
     <script type="module">
         import { apiFetch, ApiError } from '/common/js/apiClient.js';
-        import { requireRole } from '/common/js/session.js';
-        import { renderNav } from '/common/js/nav.js';
+        import { requireQueryParams } from '/common/js/session.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { escapeHtml } from '/common/js/ui.js';
 
-        const me = await requireRole('CONTABLE');
-        if (me) {
-            renderNav(me);
-            init();
-        }
+        bootstrapPage('CONTABLE', init);
 
         async function init() {
-            const params = new URLSearchParams(window.location.search);
-            const empresaId = params.get('empresaId');
-            const serieId = params.get('serieId');
-            if (!empresaId || !serieId) {
-                window.location.href = '/contable/dashboard.html';
+            const query = requireQueryParams(['empresaId', 'serieId'], '/contable/dashboard.html');
+            if (!query) {
                 return;
             }
+            const { empresaId, serieId } = query;
             document.getElementById('back-link').href = `/contable/series.html?empresaId=${empresaId}`;
 
             const result = document.getElementById('result');
@@ -61,14 +56,16 @@
                             <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">&times;</span>
                             <div>
                                 <p class="font-semibold text-red-700">Cadena rota</p>
-                                <p class="text-sm text-slate-600">Factura numero ${verificacion.numero}: ${verificacion.motivo}</p>
+                                <p class="text-sm text-slate-600">Factura numero ${verificacion.numero}: ${escapeHtml(verificacion.motivo)}</p>
                                 <p class="mt-1 text-xs text-slate-400">${verificacion.totalFacturas} factura(s) en la serie.</p>
                             </div>
                         </div>
                     `;
                 }
             } catch (error) {
-                result.innerHTML = `<p class="text-sm text-red-700">${error instanceof ApiError ? error.message : 'No se pudo verificar la serie'}</p>`;
+                result.innerHTML = '<p id="error-message" class="text-sm text-red-700"></p>';
+                document.getElementById('error-message').textContent =
+                    error instanceof ApiError ? error.message : 'No se pudo verificar la serie';
             }
         }
     </script>

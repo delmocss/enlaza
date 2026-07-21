@@ -64,22 +64,18 @@
 
     <script type="module">
         import { apiFetch, ApiError } from '/common/js/apiClient.js';
-        import { requireRole } from '/common/js/session.js';
-        import { renderNav } from '/common/js/nav.js';
-        import { escapeHtml, showError } from '/common/js/ui.js';
+        import { requireQueryParams } from '/common/js/session.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { escapeHtml, showError, confirmAndRun } from '/common/js/ui.js';
 
-        const me = await requireRole('CONTABLE');
-        if (me) {
-            renderNav(me);
-            init();
-        }
+        bootstrapPage('CONTABLE', init);
 
         function init() {
-            const empresaId = new URLSearchParams(window.location.search).get('empresaId');
-            if (!empresaId) {
-                window.location.href = '/contable/dashboard.html';
+            const query = requireQueryParams(['empresaId'], '/contable/dashboard.html');
+            if (!query) {
                 return;
             }
+            const { empresaId } = query;
 
             const form = document.getElementById('cliente-form');
             const formTitle = document.getElementById('form-title');
@@ -136,19 +132,15 @@
                 });
 
                 tbody.querySelectorAll('button[data-action="eliminar"]').forEach(button => {
-                    button.addEventListener('click', async () => {
+                    button.addEventListener('click', () => {
                         const id = button.closest('tr').dataset.id;
-                        if (!confirm('Eliminar este cliente? Esta accion no se puede deshacer.')) {
-                            return;
-                        }
-                        button.disabled = true;
-                        try {
-                            await apiFetch(`/empresas/${empresaId}/clientes/${id}`, { method: 'DELETE' });
-                            await loadClientes();
-                        } catch (error) {
-                            alert(error instanceof ApiError ? error.message : 'No se pudo eliminar el cliente');
-                            button.disabled = false;
-                        }
+                        confirmAndRun({
+                            button,
+                            confirmMessage: 'Eliminar este cliente? Esta accion no se puede deshacer.',
+                            action: () => apiFetch(`/empresas/${empresaId}/clientes/${id}`, { method: 'DELETE' }),
+                            onSuccess: loadClientes,
+                            errorFallback: 'No se pudo eliminar el cliente',
+                        });
                     });
                 });
             }
