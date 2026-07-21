@@ -1,4 +1,6 @@
 app:
+  cors:
+    allowed-origin: http://localhost:8081
   jwt:
     # Secreto fijo de solo-test: nunca se usa fuera de "mvn test". No requiere
     # que el desarrollador exporte JWT_SECRET a mano para poder testear.
