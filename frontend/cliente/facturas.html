@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enlaza - Mis facturas</title>
+    <link rel="stylesheet" href="/common/css/styles.css" />
+    <script src="/common/js/config.js"></script>
+</head>
+<body class="min-h-screen bg-slate-50">
+    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+
+    <main class="mx-auto max-w-4xl px-4 py-8">
+        <h1 class="mb-6 text-xl font-semibold text-slate-900">Mis facturas</h1>
+
+        <section class="rounded-lg border border-slate-200 bg-white">
+            <table class="w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3 font-medium">Numero</th>
+                        <th class="px-4 py-3 font-medium">Fecha</th>
+                        <th class="px-4 py-3 font-medium">Total</th>
+                        <th class="px-4 py-3 font-medium">Estado</th>
+                        <th class="px-4 py-3 font-medium">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="facturas-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script type="module">
+        import { apiFetch, apiFetchBlob, ApiError } from '/common/js/apiClient.js';
+        import { requireRole } from '/common/js/session.js';
+        import { renderNav } from '/common/js/nav.js';
+        import { formatCurrency, formatDate, downloadBlob } from '/common/js/ui.js';
+
+        const me = await requireRole('CLIENTE');
+        if (me) {
+            renderNav(me);
+            init();
+        }
+
+        async function init() {
+            const tbody = document.getElementById('facturas-body');
+            const facturas = await apiFetch('/mis-facturas');
+
+            tbody.innerHTML = facturas.map(factura => {
+                const estadoBadge = factura.estado === 'EMITIDA'
+                    ? '<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Emitida</span>'
+                    : '<span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Anulada</span>';
+
+                return `
+                    <tr class="border-b border-slate-100 last:border-0" data-id="${factura.id}">
+                        <td class="px-4 py-3">${factura.numero}</td>
+                        <td class="px-4 py-3">${formatDate(factura.fechaEmision)}</td>
+                        <td class="px-4 py-3">${formatCurrency(factura.total)}</td>
+                        <td class="px-4 py-3">${estadoBadge}</td>
+                        <td class="px-4 py-3">
+                            <button type="button" data-action="pdf" class="text-indigo-600 hover:underline">PDF</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Todavia no tienes facturas</td></tr>';
+
+            tbody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const facturaId = button.closest('tr').dataset.id;
+                    const factura = facturas.find(f => f.id === facturaId);
+                    button.disabled = true;
+                    try {
+                        const blob = await apiFetchBlob(`/mis-facturas/${facturaId}/pdf`);
+                        downloadBlob(blob, `factura-${factura.numero}.pdf`);
+                    } catch (error) {
+                        alert(error instanceof ApiError ? error.message : 'No se pudo descargar el PDF');
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>

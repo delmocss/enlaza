@@ -36,8 +36,17 @@ services:
       DEMO_CLIENTE_EMAIL: ${DEMO_CLIENTE_EMAIL:-cliente@enlaza.dev}
       DEMO_CLIENTE_PASSWORD: ${DEMO_CLIENTE_PASSWORD:-Cliente123!}
       SERVER_PORT: ${SERVER_PORT:-8080}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-http://localhost:8081}
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+
+  frontend:
+    build: ./frontend
+    container_name: enlaza-frontend
+    depends_on:
+      - app
+    ports:
+      - "8081:80"
 
 volumes:
   enlaza-postgres-data:

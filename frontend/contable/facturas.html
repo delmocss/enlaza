@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enlaza - Facturas</title>
+    <link rel="stylesheet" href="/common/css/styles.css" />
+    <script src="/common/js/config.js"></script>
+</head>
+<body class="min-h-screen bg-slate-50">
+    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+
+    <main class="mx-auto max-w-5xl px-4 py-8">
+        <a id="back-link" href="/contable/dashboard.html" class="text-sm text-indigo-600 hover:underline">&larr; Series</a>
+        <h1 class="mb-6 mt-2 text-xl font-semibold text-slate-900">Facturas</h1>
+
+        <section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-sm font-semibold text-slate-700">Nueva factura</h2>
+            <form id="factura-form" novalidate>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700">Cliente</label>
+                    <select name="clienteId" required class="mt-1 w-full max-w-sm rounded-md border border-slate-300 px-3 py-2 text-sm"></select>
+                </div>
+
+                <table class="mb-4 w-full text-left text-sm">
+                    <thead class="text-slate-500">
+                        <tr>
+                            <th class="px-2 py-2 font-medium">Descripcion</th>
+                            <th class="px-2 py-2 font-medium">Cantidad</th>
+                            <th class="px-2 py-2 font-medium">Precio</th>
+                            <th class="px-2 py-2 font-medium">IVA %</th>
+                            <th class="px-2 py-2 font-medium">IRPF %</th>
+                            <th class="px-2 py-2 font-medium">Importe</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineas-body"></tbody>
+                </table>
+
+                <button type="button" id="add-linea"
+                        class="mb-4 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                    + Anadir linea
+                </button>
+
+                <div class="mb-4 grid grid-cols-2 gap-2 text-sm sm:w-72">
+                    <span class="text-slate-500">Base imponible</span><span id="preview-base" class="text-right font-medium">0,00 €</span>
+                    <span class="text-slate-500">IVA</span><span id="preview-iva" class="text-right font-medium">0,00 €</span>
+                    <span class="text-slate-500">IRPF</span><span id="preview-irpf" class="text-right font-medium">0,00 €</span>
+                    <span class="text-slate-700 font-semibold">Total</span><span id="preview-total" class="text-right font-semibold">0,00 €</span>
+                </div>
+                <p class="mb-4 text-xs text-slate-400">
+                    El calculo de arriba es solo una previsualizacion en el navegador; los importes definitivos los calcula y firma el servidor al crear la factura.
+                </p>
+
+                <p id="form-error" class="mb-4 hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+                <button type="submit" id="submit-button"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                    Crear factura
+                </button>
+            </form>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white">
+            <table class="w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3 font-medium">Numero</th>
+                        <th class="px-4 py-3 font-medium">Fecha</th>
+                        <th class="px-4 py-3 font-medium">Cliente</th>
+                        <th class="px-4 py-3 font-medium">Total</th>
+                        <th class="px-4 py-3 font-medium">Estado</th>
+                        <th class="px-4 py-3 font-medium">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="facturas-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script type="module">
+        import { apiFetch, apiFetchBlob, ApiError } from '/common/js/apiClient.js';
+        import { requireRole } from '/common/js/session.js';
+        import { renderNav } from '/common/js/nav.js';
+        import { escapeHtml, showError, formatCurrency, formatDate, downloadBlob } from '/common/js/ui.js';
+
+        const me = await requireRole('CONTABLE');
+        if (me) {
+            renderNav(me);
+            init();
+        }
+
+        function roundHalfUp(value, decimals = 2) {
+            const factor = 10 ** decimals;
+            return Math.round((value + Number.EPSILON) * factor) / factor;
+        }
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const empresaId = params.get('empresaId');
+            const serieId = params.get('serieId');
+            if (!empresaId || !serieId) {
+                window.location.href = '/contable/dashboard.html';
+                return;
+            }
+            document.getElementById('back-link').href = `/contable/series.html?empresaId=${empresaId}`;
+
+            const form = document.getElementById('factura-form');
+            const clienteSelect = form.clienteId;
+            const lineasBody = document.getElementById('lineas-body');
+            const addLineaButton = document.getElementById('add-linea');
+            const formError = document.getElementById('form-error');
+            const submitButton = document.getElementById('submit-button');
+            const facturasBody = document.getElementById('facturas-body');
+
+            let clientesById = new Map();
+
+            function lineaRowTemplate() {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-2 py-1"><input name="descripcion" required class="w-full rounded-md border border-slate-300 px-2 py-1"></td>
+                    <td class="px-2 py-1"><input name="cantidad" type="number" step="0.01" min="0.01" required value="1" class="w-20 rounded-md border border-slate-300 px-2 py-1"></td>
+                    <td class="px-2 py-1"><input name="precioUnitario" type="number" step="0.01" min="0" required value="0" class="w-24 rounded-md border border-slate-300 px-2 py-1"></td>
+                    <td class="px-2 py-1"><input name="porcentajeIva" type="number" step="0.01" min="0" max="100" required value="21" class="w-20 rounded-md border border-slate-300 px-2 py-1"></td>
+                    <td class="px-2 py-1"><input name="porcentajeIrpf" type="number" step="0.01" min="0" max="100" required value="0" class="w-20 rounded-md border border-slate-300 px-2 py-1"></td>
+                    <td class="px-2 py-1 text-right font-medium" data-role="importe">0,00 €</td>
+                    <td class="px-2 py-1"><button type="button" data-action="quitar-linea" class="text-red-600 hover:underline">Quitar</button></td>
+                `;
+                row.querySelectorAll('input').forEach(input => input.addEventListener('input', updatePreview));
+                row.querySelector('[data-action="quitar-linea"]').addEventListener('click', () => {
+                    row.remove();
+                    updatePreview();
+                });
+                return row;
+            }
+
+            function addLinea() {
+                lineasBody.appendChild(lineaRowTemplate());
+                updatePreview();
+            }
+
+            function readLineas() {
+                return [...lineasBody.querySelectorAll('tr')].map(row => ({
+                    descripcion: row.querySelector('[name="descripcion"]').value.trim(),
+                    cantidad: parseFloat(row.querySelector('[name="cantidad"]').value || '0'),
+                    precioUnitario: parseFloat(row.querySelector('[name="precioUnitario"]').value || '0'),
+                    porcentajeIva: parseFloat(row.querySelector('[name="porcentajeIva"]').value || '0'),
+                    porcentajeIrpf: parseFloat(row.querySelector('[name="porcentajeIrpf"]').value || '0'),
+                    row,
+                }));
+            }
+
+            function updatePreview() {
+                const lineas = readLineas();
+                let base = 0, iva = 0, irpf = 0;
+
+                lineas.forEach(linea => {
+                    const importeLinea = roundHalfUp(linea.cantidad * linea.precioUnitario);
+                    linea.row.querySelector('[data-role="importe"]').textContent = formatCurrency(importeLinea);
+                    base += importeLinea;
+                    iva += roundHalfUp(importeLinea * linea.porcentajeIva / 100);
+                    irpf += roundHalfUp(importeLinea * linea.porcentajeIrpf / 100);
+                });
+
+                document.getElementById('preview-base').textContent = formatCurrency(base);
+                document.getElementById('preview-iva').textContent = formatCurrency(iva);
+                document.getElementById('preview-irpf').textContent = formatCurrency(irpf);
+                document.getElementById('preview-total').textContent = formatCurrency(base + iva - irpf);
+            }
+
+            async function loadClientes() {
+                const clientes = await apiFetch(`/empresas/${empresaId}/clientes`);
+                clientesById = new Map(clientes.map(c => [c.id, c]));
+                clienteSelect.innerHTML = clientes.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('')
+                    || '<option value="">Sin clientes disponibles</option>';
+            }
+
+            async function loadFacturas() {
+                const facturas = await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas`);
+                facturasBody.innerHTML = facturas.map(factura => {
+                    const cliente = clientesById.get(factura.clienteId);
+                    const estadoBadge = factura.estado === 'EMITIDA'
+                        ? '<span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Emitida</span>'
+                        : '<span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">Anulada</span>';
+
+                    return `
+                        <tr class="border-b border-slate-100 last:border-0" data-id="${factura.id}">
+                            <td class="px-4 py-3">${factura.numero}</td>
+                            <td class="px-4 py-3">${formatDate(factura.fechaEmision)}</td>
+                            <td class="px-4 py-3">${escapeHtml(cliente?.nombre ?? factura.clienteId)}</td>
+                            <td class="px-4 py-3">${formatCurrency(factura.total)}</td>
+                            <td class="px-4 py-3">${estadoBadge}</td>
+                            <td class="px-4 py-3">
+                                <div class="flex flex-wrap gap-3">
+                                    <button type="button" data-action="pdf" class="text-indigo-600 hover:underline">PDF</button>
+                                    ${factura.estado === 'EMITIDA'
+                                        ? '<button type="button" data-action="anular" class="text-red-600 hover:underline">Anular</button>'
+                                        : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('') || '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Sin facturas todavia</td></tr>';
+
+                facturasBody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const facturaId = button.closest('tr').dataset.id;
+                        const factura = facturas.find(f => f.id === facturaId);
+                        button.disabled = true;
+                        try {
+                            const blob = await apiFetchBlob(`/empresas/${empresaId}/series/${serieId}/facturas/${facturaId}/pdf`);
+                            downloadBlob(blob, `factura-${factura.numero}.pdf`);
+                        } catch (error) {
+                            alert(error instanceof ApiError ? error.message : 'No se pudo descargar el PDF');
+                        } finally {
+                            button.disabled = false;
+                        }
+                    });
+                });
+
+                facturasBody.querySelectorAll('button[data-action="anular"]').forEach(button => {
+                    button.addEventListener('click', async () => {
+                        const facturaId = button.closest('tr').dataset.id;
+                        if (!confirm('Anular esta factura? La numeracion y el hash no se recuperan.')) {
+                            return;
+                        }
+                        button.disabled = true;
+                        try {
+                            await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas/${facturaId}/anular`, { method: 'PATCH' });
+                            await loadFacturas();
+                        } catch (error) {
+                            alert(error instanceof ApiError ? error.message : 'No se pudo anular la factura');
+                            button.disabled = false;
+                        }
+                    });
+                });
+            }
+
+            addLineaButton.addEventListener('click', addLinea);
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                showError(formError, null);
+
+                const lineas = readLineas();
+                if (lineas.length === 0) {
+                    showError(formError, 'Anade al menos una linea');
+                    return;
+                }
+
+                submitButton.disabled = true;
+                try {
+                    await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            clienteId: clienteSelect.value,
+                            lineas: lineas.map(({ row, ...linea }) => linea),
+                        }),
+                    });
+                    lineasBody.innerHTML = '';
+                    addLinea();
+                    await loadFacturas();
+                } catch (error) {
+                    showError(formError, error instanceof ApiError ? error.message : 'No se pudo crear la factura');
+                } finally {
+                    submitButton.disabled = false;
+                }
+            });
+
+            await loadClientes();
+            addLinea();
+            await loadFacturas();
+        }
+    </script>
+</body>
+</html>
