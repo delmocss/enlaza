@@ -4,6 +4,7 @@ import com.enlaza.common.exception.BusinessRuleException;
 import com.enlaza.common.exception.ResourceNotFoundException;
 import com.enlaza.empresa.dto.EmpresaRequest;
 import com.enlaza.empresa.dto.EmpresaResponse;
+import com.enlaza.usuario.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.UUID;
 public class EmpresaService {
 
     private final EmpresaRepository empresaRepository;
+    private final UsuarioEmpresaRepository usuarioEmpresaRepository;
 
     @Transactional
     public EmpresaResponse crear(EmpresaRequest request) {
@@ -43,6 +45,25 @@ public class EmpresaService {
 
     public EmpresaResponse obtener(UUID id) {
         return EmpresaResponse.of(buscarPorId(id));
+    }
+
+    /**
+     * Para el selector de empresa del frontend: un ADMIN ve todas (mismo
+     * listado que /api/empresas), un CONTABLE solo las que tiene asignadas
+     * via UsuarioEmpresa -- GET /api/empresas es ADMIN-only y no le sirve.
+     */
+    public List<EmpresaResponse> listarParaUsuario(UUID usuarioId, Role role) {
+        if (role == Role.ADMIN) {
+            return listar();
+        }
+
+        List<UUID> empresaIds = usuarioEmpresaRepository.findByUsuarioId(usuarioId).stream()
+                .map(UsuarioEmpresa::getEmpresaId)
+                .toList();
+
+        return empresaRepository.findAllById(empresaIds).stream()
+                .map(EmpresaResponse::of)
+                .toList();
     }
 
     @Transactional
