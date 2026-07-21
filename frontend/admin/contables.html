@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enlaza - Contables asignados</title>
+    <link rel="stylesheet" href="/common/css/styles.css" />
+    <script src="/common/js/config.js"></script>
+</head>
+<body class="min-h-screen bg-slate-50">
+    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+
+    <main class="mx-auto max-w-5xl px-4 py-8">
+        <a href="/admin/empresas.html" class="text-sm text-indigo-600 hover:underline">&larr; Volver a empresas</a>
+        <h1 id="page-title" class="mb-2 mt-2 text-xl font-semibold text-slate-900">Contables asignados</h1>
+        <p class="mb-6 text-sm text-slate-500">
+            Solo lectura y baja: la asignacion de un CONTABLE nuevo se hace desde los usuarios semilla del sistema, no desde esta pantalla.
+        </p>
+
+        <section class="rounded-lg border border-slate-200 bg-white">
+            <table class="w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3 font-medium">Nombre</th>
+                        <th class="px-4 py-3 font-medium">Email</th>
+                        <th class="px-4 py-3 font-medium">Asignado el</th>
+                        <th class="px-4 py-3 font-medium">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="contables-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script type="module">
+        import { apiFetch } from '/common/js/apiClient.js';
+        import { requireQueryParams } from '/common/js/session.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { escapeHtml, formatDate, confirmAndRun } from '/common/js/ui.js';
+
+        bootstrapPage('ADMIN', init);
+
+        function init() {
+            const query = requireQueryParams(['empresaId'], '/admin/empresas.html');
+            if (!query) {
+                return;
+            }
+            const { empresaId } = query;
+            const tbody = document.getElementById('contables-body');
+
+            async function loadEmpresaNombre() {
+                try {
+                    const empresa = await apiFetch(`/empresas/${empresaId}`);
+                    document.getElementById('page-title').textContent = `Contables asignados: ${empresa.razonSocial}`;
+                } catch {
+                    // El titulo generico ya sirve de fallback si la empresa no se pudo cargar.
+                }
+            }
+
+            async function loadContables() {
+                const contables = await apiFetch(`/empresas/${empresaId}/contables`);
+                tbody.innerHTML = contables.map(contable => `
+                    <tr class="border-b border-slate-100 last:border-0" data-id="${contable.usuarioId}">
+                        <td class="px-4 py-3">${escapeHtml(contable.nombre)}</td>
+                        <td class="px-4 py-3">${escapeHtml(contable.email)}</td>
+                        <td class="px-4 py-3">${formatDate(contable.fechaAsignacion)}</td>
+                        <td class="px-4 py-3">
+                            <button type="button" data-action="quitar" class="text-red-600 hover:underline">Quitar</button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Sin contables asignados</td></tr>';
+
+                tbody.querySelectorAll('button[data-action="quitar"]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const usuarioId = button.closest('tr').dataset.id;
+                        confirmAndRun({
+                            button,
+                            confirmMessage: 'Quitar a este contable de la empresa?',
+                            action: () => apiFetch(`/empresas/${empresaId}/contables/${usuarioId}`, { method: 'DELETE' }),
+                            onSuccess: loadContables,
+                            errorFallback: 'No se pudo quitar al contable',
+                        });
+                    });
+                });
+            }
+
+            loadEmpresaNombre();
+            loadContables();
+        }
+    </script>
+</body>
+</html>

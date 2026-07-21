@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enlaza - Iniciar sesion</title>
+    <link rel="stylesheet" href="/common/css/styles.css" />
+    <script src="/common/js/config.js"></script>
+</head>
+<body class="flex min-h-screen items-center justify-center bg-slate-50">
+    <div class="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 class="mb-6 text-xl font-semibold text-slate-900">Enlaza</h1>
+        <form id="login-form" class="space-y-4" novalidate>
+            <div>
+                <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
+                <input id="email" name="email" type="email" required autocomplete="username"
+                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" />
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-slate-700">Contrasena</label>
+                <input id="password" name="password" type="password" required autocomplete="current-password"
+                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" />
+            </div>
+            <p id="error-banner" class="hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+            <button type="submit"
+                    class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                Entrar
+            </button>
+        </form>
+    </div>
+    <script type="module">
+        import { login, apiFetch, ApiError } from '/common/js/apiClient.js';
+        import { homeFor } from '/common/js/session.js';
+        import { showError } from '/common/js/ui.js';
+
+        const form = document.getElementById('login-form');
+        const errorBanner = document.getElementById('error-banner');
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            showError(errorBanner, null);
+            submitButton.disabled = true;
+
+            try {
+                await login(form.email.value.trim(), form.password.value);
+                const me = await apiFetch('/auth/me');
+                window.location.href = homeFor(me.role);
+            } catch (error) {
+                const message = error instanceof ApiError && error.status === 401
+                    ? 'Email o contrasena incorrectos'
+                    : 'No se pudo iniciar sesion. Intenta de nuevo.';
+                showError(errorBanner, message);
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

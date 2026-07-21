@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enlaza - Clientes</title>
+    <link rel="stylesheet" href="/common/css/styles.css" />
+    <script src="/common/js/config.js"></script>
+</head>
+<body class="min-h-screen bg-slate-50">
+    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+
+    <main class="mx-auto max-w-5xl px-4 py-8">
+        <a href="/contable/dashboard.html" class="text-sm text-indigo-600 hover:underline">&larr; Mis empresas</a>
+        <h1 class="mb-6 mt-2 text-xl font-semibold text-slate-900">Clientes</h1>
+
+        <section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
+            <h2 id="form-title" class="mb-4 text-sm font-semibold text-slate-700">Nuevo cliente</h2>
+            <form id="cliente-form" class="grid grid-cols-1 gap-4 sm:grid-cols-2" novalidate>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Nombre</label>
+                    <input name="nombre" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">NIF</label>
+                    <input name="nif" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Direccion</label>
+                    <input name="direccion" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700">Email</label>
+                    <input name="email" type="email" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <p id="form-error" class="hidden sm:col-span-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+                <div class="flex gap-3 sm:col-span-2">
+                    <button type="submit" id="submit-button"
+                            class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                        Crear cliente
+                    </button>
+                    <button type="button" id="cancel-edit"
+                            class="hidden rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white">
+            <table class="w-full text-left text-sm">
+                <thead class="border-b border-slate-200 text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3 font-medium">Nombre</th>
+                        <th class="px-4 py-3 font-medium">NIF</th>
+                        <th class="px-4 py-3 font-medium">Email</th>
+                        <th class="px-4 py-3 font-medium">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="clientes-body"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script type="module">
+        import { apiFetch, ApiError } from '/common/js/apiClient.js';
+        import { requireQueryParams } from '/common/js/session.js';
+        import { bootstrapPage } from '/common/js/nav.js';
+        import { escapeHtml, showError, confirmAndRun } from '/common/js/ui.js';
+
+        bootstrapPage('CONTABLE', init);
+
+        function init() {
+            const query = requireQueryParams(['empresaId'], '/contable/dashboard.html');
+            if (!query) {
+                return;
+            }
+            const { empresaId } = query;
+
+            const form = document.getElementById('cliente-form');
+            const formTitle = document.getElementById('form-title');
+            const formError = document.getElementById('form-error');
+            const submitButton = document.getElementById('submit-button');
+            const cancelButton = document.getElementById('cancel-edit');
+            const tbody = document.getElementById('clientes-body');
+
+            let editingId = null;
+
+            function resetForm() {
+                editingId = null;
+                form.reset();
+                formTitle.textContent = 'Nuevo cliente';
+                submitButton.textContent = 'Crear cliente';
+                cancelButton.classList.add('hidden');
+                showError(formError, null);
+            }
+
+            function startEdit(cliente) {
+                editingId = cliente.id;
+                form.nombre.value = cliente.nombre;
+                form.nif.value = cliente.nif;
+                form.direccion.value = cliente.direccion ?? '';
+                form.email.value = cliente.email ?? '';
+                formTitle.textContent = `Editando: ${cliente.nombre}`;
+                submitButton.textContent = 'Guardar cambios';
+                cancelButton.classList.remove('hidden');
+                showError(formError, null);
+                form.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            async function loadClientes() {
+                const clientes = await apiFetch(`/empresas/${empresaId}/clientes`);
+                tbody.innerHTML = clientes.map(cliente => `
+                    <tr class="border-b border-slate-100 last:border-0" data-id="${cliente.id}">
+                        <td class="px-4 py-3">${escapeHtml(cliente.nombre)}</td>
+                        <td class="px-4 py-3">${escapeHtml(cliente.nif)}</td>
+                        <td class="px-4 py-3">${escapeHtml(cliente.email ?? '')}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex gap-3">
+                                <button type="button" data-action="editar" class="text-slate-600 hover:underline">Editar</button>
+                                <button type="button" data-action="eliminar" class="text-red-600 hover:underline">Eliminar</button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Sin clientes todavia</td></tr>';
+
+                tbody.querySelectorAll('button[data-action="editar"]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const id = button.closest('tr').dataset.id;
+                        startEdit(clientes.find(c => c.id === id));
+                    });
+                });
+
+                tbody.querySelectorAll('button[data-action="eliminar"]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const id = button.closest('tr').dataset.id;
+                        confirmAndRun({
+                            button,
+                            confirmMessage: 'Eliminar este cliente? Esta accion no se puede deshacer.',
+                            action: () => apiFetch(`/empresas/${empresaId}/clientes/${id}`, { method: 'DELETE' }),
+                            onSuccess: loadClientes,
+                            errorFallback: 'No se pudo eliminar el cliente',
+                        });
+                    });
+                });
+            }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                showError(formError, null);
+                submitButton.disabled = true;
+
+                const payload = {
+                    nombre: form.nombre.value.trim(),
+                    nif: form.nif.value.trim(),
+                    direccion: form.direccion.value.trim() || null,
+                    email: form.email.value.trim() || null,
+                };
+
+                try {
+                    if (editingId) {
+                        await apiFetch(`/empresas/${empresaId}/clientes/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) });
+                    } else {
+                        await apiFetch(`/empresas/${empresaId}/clientes`, { method: 'POST', body: JSON.stringify(payload) });
+                    }
+                    resetForm();
+                    await loadClientes();
+                } catch (error) {
+                    showError(formError, error instanceof ApiError ? error.message : 'No se pudo guardar el cliente');
+                } finally {
+                    submitButton.disabled = false;
+                }
+            });
+
+            cancelButton.addEventListener('click', resetForm);
+
+            loadClientes();
+        }
+    </script>
+</body>
+</html>

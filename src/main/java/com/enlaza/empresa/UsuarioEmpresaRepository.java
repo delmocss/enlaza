@@ -13,6 +13,8 @@ public interface UsuarioEmpresaRepository extends JpaRepository<UsuarioEmpresa, 
 
     List<UsuarioEmpresa> findByEmpresaId(UUID empresaId);
 
+    List<UsuarioEmpresa> findByUsuarioId(UUID usuarioId);
+
     Optional<UsuarioEmpresa> findByUsuarioIdAndEmpresaId(UUID usuarioId, UUID empresaId);
 
     boolean existsByUsuarioIdAndEmpresaId(UUID usuarioId, UUID empresaId);
