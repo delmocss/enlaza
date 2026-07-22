@@ -82,11 +82,6 @@ export const iconChevronRight = (cls = 'h-3.5 w-3.5') => svgIcon(
     cls,
 );
 
-export const iconClose = (cls = 'h-4 w-4') => svgIcon(
-    '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
-    cls,
-);
-
 export const iconInbox = (cls = 'h-8 w-8') => svgIcon(
     '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>' +
     '<path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',

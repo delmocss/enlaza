@@ -43,17 +43,11 @@
         import { login, apiFetch, ApiError } from '/common/js/apiClient.js';
         import { homeFor } from '/common/js/session.js';
         import { showError } from '/common/js/ui.js';
-        import { getTheme, toggleTheme } from '/common/js/theme.js';
-        import { iconLogo, iconSun, iconMoon } from '/common/js/icons.js';
+        import { mountThemeToggle } from '/common/js/theme.js';
+        import { iconLogo } from '/common/js/icons.js';
 
         document.getElementById('brand-icon').innerHTML = iconLogo('h-6 w-6');
-
-        const themeIcon = document.getElementById('theme-toggle-icon');
-        themeIcon.innerHTML = getTheme() === 'dark' ? iconSun('h-4 w-4') : iconMoon('h-4 w-4');
-        document.getElementById('theme-toggle').addEventListener('click', () => {
-            const next = toggleTheme();
-            themeIcon.innerHTML = next === 'dark' ? iconSun('h-4 w-4') : iconMoon('h-4 w-4');
-        });
+        mountThemeToggle();
 
         const form = document.getElementById('login-form');
         const errorBanner = document.getElementById('error-banner');

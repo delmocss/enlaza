@@ -1,7 +1,7 @@
 import { requireRole, logoutAndRedirect, homeFor } from './session.js';
 import { escapeHtml } from './ui.js';
-import { getTheme, toggleTheme } from './theme.js';
-import { iconLogo, iconSun, iconMoon, iconLogout, iconChevronRight } from './icons.js';
+import { mountThemeToggle } from './theme.js';
+import { iconLogo, iconLogout, iconChevronRight } from './icons.js';
 
 const LINKS_BY_ROLE = {
     ADMIN: [
@@ -54,11 +54,11 @@ export function renderNav(me) {
             <div class="flex items-center gap-3">
                 <button id="theme-toggle" type="button" title="Cambiar tema"
                         class="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
-                    <span id="theme-toggle-icon">${getTheme() === 'dark' ? iconSun('h-4 w-4') : iconMoon('h-4 w-4')}</span>
+                    <span id="theme-toggle-icon"></span>
                 </button>
                 <div class="flex items-center gap-2 border-l border-slate-200 pl-3 dark:border-slate-800">
                     <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
-                        ${initials(me.nombre)}
+                        ${escapeHtml(initials(me.nombre))}
                     </span>
                     <span class="hidden text-sm text-slate-500 sm:inline dark:text-slate-400">${escapeHtml(me.nombre)} &middot; ${escapeHtml(me.role)}</span>
                 </div>
@@ -71,17 +71,16 @@ export function renderNav(me) {
     `;
 
     document.getElementById('logout-button').addEventListener('click', logoutAndRedirect);
-    document.getElementById('theme-toggle').addEventListener('click', () => {
-        const next = toggleTheme();
-        document.getElementById('theme-toggle-icon').innerHTML = next === 'dark' ? iconSun('h-4 w-4') : iconMoon('h-4 w-4');
-    });
+    mountThemeToggle();
 }
 
 /**
  * Pinta la traza de migas de pan dentro del elemento con id="breadcrumbs"
  * que las paginas anidadas traen en su HTML (sustituye al enlace suelto
- * "&larr; Volver" de antes). `items` es una lista de {label, href} en orden
- * de raiz a hoja; el ultimo elemento se pinta como texto actual, no enlace.
+ * "&larr; Volver" de antes). `items` es una lista de {label, href?} en orden
+ * de raiz a hoja; el ultimo elemento, y cualquier elemento sin `href` (p.
+ * ej. un nombre de empresa que no tiene pagina propia a la que enlazar), se
+ * pinta como texto plano, no enlace.
  */
 export function renderBreadcrumbs(items) {
     const container = document.getElementById('breadcrumbs');
@@ -92,7 +91,7 @@ export function renderBreadcrumbs(items) {
     container.innerHTML = items.map((item, index) => {
         const isLast = index === items.length - 1;
         const separator = index > 0 ? iconChevronRight('h-3.5 w-3.5 text-slate-300 dark:text-slate-600') : '';
-        const content = isLast
+        const content = (isLast || !item.href)
             ? `<span class="font-medium text-slate-700 dark:text-slate-300">${escapeHtml(item.label)}</span>`
             : `<a href="${item.href}" class="breadcrumb-link">${escapeHtml(item.label)}</a>`;
         return `${separator}${content}`;

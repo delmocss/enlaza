@@ -56,7 +56,7 @@
 
             const result = document.getElementById('result');
 
-            await loadBreadcrumbs();
+            loadBreadcrumbs();
 
             try {
                 const verificacion = await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas/verificacion`);
