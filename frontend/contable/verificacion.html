@@ -4,26 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Enlaza - Verificacion de integridad</title>
+    <script src="/common/js/theme-init.js"></script>
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50">
-    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
 
     <main class="mx-auto max-w-3xl px-4 py-8">
-        <a id="back-link" href="/contable/dashboard.html" class="text-sm text-indigo-600 hover:underline">&larr; Series</a>
-        <h1 class="mb-6 mt-2 text-xl font-semibold text-slate-900">Verificacion de integridad</h1>
+        <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
+        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Verificacion de integridad</h1>
 
-        <section id="result" class="rounded-lg border border-slate-200 bg-white p-6">
-            <p class="text-sm text-slate-500">Comprobando la cadena de hashes...</p>
+        <section id="result" class="card p-6">
+            <div class="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
+                <div class="skeleton-block h-10 w-10 rounded-full"></div>
+                <p>Comprobando la cadena de hashes...</p>
+            </div>
         </section>
     </main>
 
     <script type="module">
         import { apiFetch, ApiError } from '/common/js/apiClient.js';
         import { requireQueryParams } from '/common/js/session.js';
-        import { bootstrapPage } from '/common/js/nav.js';
+        import { bootstrapPage, renderBreadcrumbs } from '/common/js/nav.js';
         import { escapeHtml } from '/common/js/ui.js';
+        import { iconCheckCircle, iconXCircle } from '/common/js/icons.js';
 
         bootstrapPage('CONTABLE', init);
 
@@ -33,9 +38,25 @@
                 return;
             }
             const { empresaId, serieId } = query;
-            document.getElementById('back-link').href = `/contable/series.html?empresaId=${empresaId}`;
+
+            async function loadBreadcrumbs() {
+                const [empresas, series] = await Promise.all([
+                    apiFetch('/mis-empresas').catch(() => []),
+                    apiFetch(`/empresas/${empresaId}/series`).catch(() => []),
+                ]);
+                const empresa = empresas.find(e => e.id === empresaId);
+                const serie = series.find(s => s.id === serieId);
+                renderBreadcrumbs([
+                    { label: 'Mis empresas', href: '/contable/dashboard.html' },
+                    { label: empresa ? empresa.razonSocial : 'Empresa', href: `/contable/series.html?empresaId=${empresaId}` },
+                    { label: serie ? serie.codigo : 'Serie', href: `/contable/series.html?empresaId=${empresaId}` },
+                    { label: 'Verificacion' },
+                ]);
+            }
 
             const result = document.getElementById('result');
+
+            await loadBreadcrumbs();
 
             try {
                 const verificacion = await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas/verificacion`);
@@ -43,29 +64,31 @@
                 if (verificacion.integra) {
                     result.innerHTML = `
                         <div class="flex items-center gap-3">
-                            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-700">&check;</span>
+                            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400">
+                                ${iconCheckCircle('h-5 w-5')}
+                            </span>
                             <div>
-                                <p class="font-semibold text-slate-900">Cadena integra</p>
-                                <p class="text-sm text-slate-500">${verificacion.totalFacturas} factura(s) verificada(s), sin ninguna rotura detectada.</p>
+                                <p class="font-semibold text-slate-900 dark:text-slate-100">Cadena integra</p>
+                                <p class="text-sm text-slate-500 dark:text-slate-400">${verificacion.totalFacturas} factura(s) verificada(s), sin ninguna rotura detectada.</p>
                             </div>
                         </div>
                     `;
                 } else {
                     result.innerHTML = `
                         <div class="flex items-start gap-3">
-                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700">&times;</span>
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400">
+                                ${iconXCircle('h-5 w-5')}
+                            </span>
                             <div>
-                                <p class="font-semibold text-red-700">Cadena rota</p>
-                                <p class="text-sm text-slate-600">Factura numero ${verificacion.numero}: ${escapeHtml(verificacion.motivo)}</p>
-                                <p class="mt-1 text-xs text-slate-400">${verificacion.totalFacturas} factura(s) en la serie.</p>
+                                <p class="font-semibold text-red-700 dark:text-red-400">Cadena rota</p>
+                                <p class="text-sm text-slate-600 dark:text-slate-300">Factura numero ${verificacion.numero}: ${escapeHtml(verificacion.motivo)}</p>
+                                <p class="mt-1 text-xs text-slate-400 dark:text-slate-500">${verificacion.totalFacturas} factura(s) en la serie.</p>
                             </div>
                         </div>
                     `;
                 }
             } catch (error) {
-                result.innerHTML = '<p id="error-message" class="text-sm text-red-700"></p>';
-                document.getElementById('error-message').textContent =
-                    error instanceof ApiError ? error.message : 'No se pudo verificar la serie';
+                result.innerHTML = `<p class="text-sm text-red-700 dark:text-red-400">${escapeHtml(error instanceof ApiError ? error.message : 'No se pudo verificar la serie')}</p>`;
             }
         }
     </script>

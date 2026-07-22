@@ -4,24 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Enlaza - Mis facturas</title>
+    <script src="/common/js/theme-init.js"></script>
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50">
-    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
 
     <main class="mx-auto max-w-4xl px-4 py-8">
-        <h1 class="mb-6 text-xl font-semibold text-slate-900">Mis facturas</h1>
+        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Mis facturas</h1>
 
-        <section class="rounded-lg border border-slate-200 bg-white">
-            <table class="w-full text-left text-sm">
-                <thead class="border-b border-slate-200 text-slate-500">
+        <section class="card">
+            <table class="table-shell">
+                <thead class="table-head-row">
                     <tr>
-                        <th class="px-4 py-3 font-medium">Numero</th>
-                        <th class="px-4 py-3 font-medium">Fecha</th>
-                        <th class="px-4 py-3 font-medium">Total</th>
-                        <th class="px-4 py-3 font-medium">Estado</th>
-                        <th class="px-4 py-3 font-medium">Acciones</th>
+                        <th class="table-head-cell">Numero</th>
+                        <th class="table-head-cell">Fecha</th>
+                        <th class="table-head-cell">Total</th>
+                        <th class="table-head-cell">Estado</th>
+                        <th class="table-head-cell">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="facturas-body"></tbody>
@@ -32,27 +33,29 @@
     <script type="module">
         import { apiFetch, apiFetchBlob } from '/common/js/apiClient.js';
         import { bootstrapPage } from '/common/js/nav.js';
-        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun } from '/common/js/ui.js';
+        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun, renderEmptyRow, renderSkeletonRows } from '/common/js/ui.js';
+        import { iconDownload } from '/common/js/icons.js';
 
         bootstrapPage('CLIENTE', init);
 
         async function init() {
             const tbody = document.getElementById('facturas-body');
+            tbody.innerHTML = renderSkeletonRows(3, 5);
             const facturas = await apiFetch('/mis-facturas');
 
             tbody.innerHTML = facturas.map(factura => {
                 return `
-                    <tr class="border-b border-slate-100 last:border-0" data-id="${factura.id}">
-                        <td class="px-4 py-3">${factura.numero}</td>
-                        <td class="px-4 py-3">${formatDate(factura.fechaEmision)}</td>
-                        <td class="px-4 py-3">${formatCurrency(factura.total)}</td>
-                        <td class="px-4 py-3">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
-                        <td class="px-4 py-3">
-                            <button type="button" data-action="pdf" class="text-indigo-600 hover:underline">PDF</button>
+                    <tr class="table-row" data-id="${factura.id}">
+                        <td class="table-cell">${factura.numero}</td>
+                        <td class="table-cell">${formatDate(factura.fechaEmision)}</td>
+                        <td class="table-cell">${formatCurrency(factura.total)}</td>
+                        <td class="table-cell">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
+                        <td class="table-cell">
+                            <button type="button" data-action="pdf" class="btn-icon">${iconDownload()} PDF</button>
                         </td>
                     </tr>
                 `;
-            }).join('') || '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">Todavia no tienes facturas</td></tr>';
+            }).join('') || renderEmptyRow(5, 'Todavia no tienes facturas');
 
             tbody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
                 button.addEventListener('click', () => {

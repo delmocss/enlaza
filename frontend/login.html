@@ -4,34 +4,56 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Enlaza - Iniciar sesion</title>
+    <script src="/common/js/theme-init.js"></script>
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="flex min-h-screen items-center justify-center bg-slate-50">
-    <div class="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 class="mb-6 text-xl font-semibold text-slate-900">Enlaza</h1>
-        <form id="login-form" class="space-y-4" novalidate>
-            <div>
-                <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
-                <input id="email" name="email" type="email" required autocomplete="username"
-                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" />
-            </div>
-            <div>
-                <label for="password" class="block text-sm font-medium text-slate-700">Contrasena</label>
-                <input id="password" name="password" type="password" required autocomplete="current-password"
-                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" />
-            </div>
-            <p id="error-banner" class="hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></p>
-            <button type="submit"
-                    class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500">
-                Entrar
-            </button>
-        </form>
+<body class="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 dark:from-slate-950 dark:to-slate-900">
+    <button id="theme-toggle" type="button" title="Cambiar tema"
+            class="fixed right-4 top-4 rounded-md p-2 text-slate-500 transition hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-slate-800">
+        <span id="theme-toggle-icon"></span>
+    </button>
+
+    <div class="w-full max-w-sm">
+        <div class="mb-6 flex flex-col items-center gap-2 text-center">
+            <span id="brand-icon" class="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white dark:bg-indigo-500"></span>
+            <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Enlaza</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400">Facturacion con cadena de integridad verificable</p>
+        </div>
+
+        <div class="card p-8 shadow-sm">
+            <form id="login-form" class="space-y-4" novalidate>
+                <div>
+                    <label for="email" class="field-label">Email</label>
+                    <input id="email" name="email" type="email" required autocomplete="username" class="field-input" />
+                </div>
+                <div>
+                    <label for="password" class="field-label">Contrasena</label>
+                    <input id="password" name="password" type="password" required autocomplete="current-password" class="field-input" />
+                </div>
+                <p id="error-banner" class="hidden banner-error"></p>
+                <button type="submit" class="btn-primary w-full">
+                    Entrar
+                </button>
+            </form>
+        </div>
     </div>
+
     <script type="module">
         import { login, apiFetch, ApiError } from '/common/js/apiClient.js';
         import { homeFor } from '/common/js/session.js';
         import { showError } from '/common/js/ui.js';
+        import { getTheme, toggleTheme } from '/common/js/theme.js';
+        import { iconLogo, iconSun, iconMoon } from '/common/js/icons.js';
+
+        document.getElementById('brand-icon').innerHTML = iconLogo('h-6 w-6');
+
+        const themeIcon = document.getElementById('theme-toggle-icon');
+        themeIcon.innerHTML = getTheme() === 'dark' ? iconSun('h-4 w-4') : iconMoon('h-4 w-4');
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const next = toggleTheme();
+            themeIcon.innerHTML = next === 'dark' ? iconSun('h-4 w-4') : iconMoon('h-4 w-4');
+        });
 
         const form = document.getElementById('login-form');
         const errorBanner = document.getElementById('error-banner');

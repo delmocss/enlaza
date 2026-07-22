@@ -4,26 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Enlaza - Facturas</title>
+    <script src="/common/js/theme-init.js"></script>
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50">
-    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
 
     <main class="mx-auto max-w-5xl px-4 py-8">
-        <a id="back-link" href="/contable/dashboard.html" class="text-sm text-indigo-600 hover:underline">&larr; Series</a>
-        <h1 class="mb-6 mt-2 text-xl font-semibold text-slate-900">Facturas</h1>
+        <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
+        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Facturas</h1>
 
-        <section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-            <h2 class="mb-4 text-sm font-semibold text-slate-700">Nueva factura</h2>
+        <section class="card mb-8 p-6">
+            <h2 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Nueva factura</h2>
             <form id="factura-form" novalidate>
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-slate-700">Cliente</label>
-                    <select name="clienteId" required class="mt-1 w-full max-w-sm rounded-md border border-slate-300 px-3 py-2 text-sm"></select>
+                    <label class="field-label">Cliente</label>
+                    <select name="clienteId" required class="field-select max-w-sm"></select>
                 </div>
 
                 <table class="mb-4 w-full text-left text-sm">
-                    <thead class="text-slate-500">
+                    <thead class="text-slate-500 dark:text-slate-400">
                         <tr>
                             <th class="px-2 py-2 font-medium">Descripcion</th>
                             <th class="px-2 py-2 font-medium">Cantidad</th>
@@ -37,39 +38,37 @@
                     <tbody id="lineas-body"></tbody>
                 </table>
 
-                <button type="button" id="add-linea"
-                        class="mb-4 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <button type="button" id="add-linea" class="btn-secondary mb-4">
                     + Anadir linea
                 </button>
 
                 <div class="mb-4 grid grid-cols-2 gap-2 text-sm sm:w-72">
-                    <span class="text-slate-500">Base imponible</span><span id="preview-base" class="text-right font-medium">0,00 €</span>
-                    <span class="text-slate-500">IVA</span><span id="preview-iva" class="text-right font-medium">0,00 €</span>
-                    <span class="text-slate-500">IRPF</span><span id="preview-irpf" class="text-right font-medium">0,00 €</span>
-                    <span class="text-slate-700 font-semibold">Total</span><span id="preview-total" class="text-right font-semibold">0,00 €</span>
+                    <span class="text-slate-500 dark:text-slate-400">Base imponible</span><span id="preview-base" class="text-right font-medium">0,00 €</span>
+                    <span class="text-slate-500 dark:text-slate-400">IVA</span><span id="preview-iva" class="text-right font-medium">0,00 €</span>
+                    <span class="text-slate-500 dark:text-slate-400">IRPF</span><span id="preview-irpf" class="text-right font-medium">0,00 €</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">Total</span><span id="preview-total" class="text-right font-semibold">0,00 €</span>
                 </div>
-                <p class="mb-4 text-xs text-slate-400">
+                <p class="mb-4 text-xs text-slate-400 dark:text-slate-500">
                     El calculo de arriba es solo una previsualizacion en el navegador; los importes definitivos los calcula y firma el servidor al crear la factura.
                 </p>
 
-                <p id="form-error" class="mb-4 hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></p>
-                <button type="submit" id="submit-button"
-                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                <p id="form-error" class="mb-4 hidden banner-error"></p>
+                <button type="submit" id="submit-button" class="btn-primary">
                     Crear factura
                 </button>
             </form>
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white">
-            <table class="w-full text-left text-sm">
-                <thead class="border-b border-slate-200 text-slate-500">
+        <section class="card">
+            <table class="table-shell">
+                <thead class="table-head-row">
                     <tr>
-                        <th class="px-4 py-3 font-medium">Numero</th>
-                        <th class="px-4 py-3 font-medium">Fecha</th>
-                        <th class="px-4 py-3 font-medium">Cliente</th>
-                        <th class="px-4 py-3 font-medium">Total</th>
-                        <th class="px-4 py-3 font-medium">Estado</th>
-                        <th class="px-4 py-3 font-medium">Acciones</th>
+                        <th class="table-head-cell">Numero</th>
+                        <th class="table-head-cell">Fecha</th>
+                        <th class="table-head-cell">Cliente</th>
+                        <th class="table-head-cell">Total</th>
+                        <th class="table-head-cell">Estado</th>
+                        <th class="table-head-cell">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="facturas-body"></tbody>
@@ -80,8 +79,9 @@
     <script type="module">
         import { apiFetch, apiFetchBlob, ApiError } from '/common/js/apiClient.js';
         import { requireQueryParams } from '/common/js/session.js';
-        import { bootstrapPage } from '/common/js/nav.js';
-        import { escapeHtml, showError, renderBadge, confirmAndRun, formatCurrency, formatDate, downloadBlob } from '/common/js/ui.js';
+        import { bootstrapPage, renderBreadcrumbs } from '/common/js/nav.js';
+        import { escapeHtml, showError, renderBadge, confirmAndRun, formatCurrency, formatDate, downloadBlob, renderEmptyRow, renderSkeletonRows } from '/common/js/ui.js';
+        import { iconDownload, iconTrash, iconXCircle } from '/common/js/icons.js';
 
         bootstrapPage('CONTABLE', init);
 
@@ -96,7 +96,6 @@
                 return;
             }
             const { empresaId, serieId } = query;
-            document.getElementById('back-link').href = `/contable/series.html?empresaId=${empresaId}`;
 
             const form = document.getElementById('factura-form');
             const clienteSelect = form.clienteId;
@@ -108,16 +107,31 @@
 
             let clientesById = new Map();
 
+            async function loadBreadcrumbs() {
+                const [empresas, series] = await Promise.all([
+                    apiFetch('/mis-empresas').catch(() => []),
+                    apiFetch(`/empresas/${empresaId}/series`).catch(() => []),
+                ]);
+                const empresa = empresas.find(e => e.id === empresaId);
+                const serie = series.find(s => s.id === serieId);
+                renderBreadcrumbs([
+                    { label: 'Mis empresas', href: '/contable/dashboard.html' },
+                    { label: empresa ? empresa.razonSocial : 'Empresa', href: `/contable/series.html?empresaId=${empresaId}` },
+                    { label: serie ? serie.codigo : 'Serie', href: `/contable/series.html?empresaId=${empresaId}` },
+                    { label: 'Facturas' },
+                ]);
+            }
+
             function lineaRowTemplate() {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="px-2 py-1"><input name="descripcion" required class="w-full rounded-md border border-slate-300 px-2 py-1"></td>
-                    <td class="px-2 py-1"><input name="cantidad" type="number" step="0.01" min="0.01" required value="1" class="w-20 rounded-md border border-slate-300 px-2 py-1"></td>
-                    <td class="px-2 py-1"><input name="precioUnitario" type="number" step="0.01" min="0" required value="0" class="w-24 rounded-md border border-slate-300 px-2 py-1"></td>
-                    <td class="px-2 py-1"><input name="porcentajeIva" type="number" step="0.01" min="0" max="100" required value="21" class="w-20 rounded-md border border-slate-300 px-2 py-1"></td>
-                    <td class="px-2 py-1"><input name="porcentajeIrpf" type="number" step="0.01" min="0" max="100" required value="0" class="w-20 rounded-md border border-slate-300 px-2 py-1"></td>
+                    <td class="px-2 py-1"><input name="descripcion" required class="field-input mt-0"></td>
+                    <td class="px-2 py-1"><input name="cantidad" type="number" step="0.01" min="0.01" required value="1" class="field-input mt-0 w-20"></td>
+                    <td class="px-2 py-1"><input name="precioUnitario" type="number" step="0.01" min="0" required value="0" class="field-input mt-0 w-24"></td>
+                    <td class="px-2 py-1"><input name="porcentajeIva" type="number" step="0.01" min="0" max="100" required value="21" class="field-input mt-0 w-20"></td>
+                    <td class="px-2 py-1"><input name="porcentajeIrpf" type="number" step="0.01" min="0" max="100" required value="0" class="field-input mt-0 w-20"></td>
                     <td class="px-2 py-1 text-right font-medium" data-role="importe">0,00 €</td>
-                    <td class="px-2 py-1"><button type="button" data-action="quitar-linea" class="text-red-600 hover:underline">Quitar</button></td>
+                    <td class="px-2 py-1"><button type="button" data-action="quitar-linea" class="btn-icon-danger">${iconTrash()}</button></td>
                 `;
                 row.querySelectorAll('input').forEach(input => input.addEventListener('input', updatePreview));
                 row.querySelector('[data-action="quitar-linea"]').addEventListener('click', () => {
@@ -169,28 +183,29 @@
             }
 
             async function loadFacturas() {
+                facturasBody.innerHTML = renderSkeletonRows(3, 6);
                 const facturas = await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas`);
                 facturasBody.innerHTML = facturas.map(factura => {
                     const cliente = clientesById.get(factura.clienteId);
 
                     return `
-                        <tr class="border-b border-slate-100 last:border-0" data-id="${factura.id}">
-                            <td class="px-4 py-3">${factura.numero}</td>
-                            <td class="px-4 py-3">${formatDate(factura.fechaEmision)}</td>
-                            <td class="px-4 py-3">${escapeHtml(cliente?.nombre ?? factura.clienteId)}</td>
-                            <td class="px-4 py-3">${formatCurrency(factura.total)}</td>
-                            <td class="px-4 py-3">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
-                            <td class="px-4 py-3">
-                                <div class="flex flex-wrap gap-3">
-                                    <button type="button" data-action="pdf" class="text-indigo-600 hover:underline">PDF</button>
+                        <tr class="table-row" data-id="${factura.id}">
+                            <td class="table-cell">${factura.numero}</td>
+                            <td class="table-cell">${formatDate(factura.fechaEmision)}</td>
+                            <td class="table-cell">${escapeHtml(cliente?.nombre ?? factura.clienteId)}</td>
+                            <td class="table-cell">${formatCurrency(factura.total)}</td>
+                            <td class="table-cell">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
+                            <td class="table-cell">
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" data-action="pdf" class="btn-icon">${iconDownload()} PDF</button>
                                     ${factura.estado === 'EMITIDA'
-                                        ? '<button type="button" data-action="anular" class="text-red-600 hover:underline">Anular</button>'
+                                        ? `<button type="button" data-action="anular" class="btn-icon-danger">${iconXCircle('h-4 w-4')} Anular</button>`
                                         : ''}
                                 </div>
                             </td>
                         </tr>
                     `;
-                }).join('') || '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Sin facturas todavia</td></tr>';
+                }).join('') || renderEmptyRow(6, 'Sin facturas todavia');
 
                 facturasBody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
                     button.addEventListener('click', () => {
@@ -216,6 +231,7 @@
                             confirmMessage: 'Anular esta factura? La numeracion y el hash no se recuperan.',
                             action: () => apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas/${facturaId}/anular`, { method: 'PATCH' }),
                             onSuccess: loadFacturas,
+                            successMessage: 'Factura anulada',
                             errorFallback: 'No se pudo anular la factura',
                         });
                     });
@@ -253,6 +269,7 @@
                 }
             });
 
+            await loadBreadcrumbs();
             await loadClientes();
             addLinea();
             await loadFacturas();
