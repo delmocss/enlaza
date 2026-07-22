@@ -1,5 +1,107 @@
 @import "tailwindcss";
 
+/*
+ * Tailwind v4 usa prefers-color-scheme por defecto para `dark:`. Se
+ * redefine el variante para que dependa de la clase `.dark` en <html>
+ * (aplicada por theme-init.js antes del primer pintado), asi el toggle
+ * manual del usuario manda sobre la preferencia del sistema operativo.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
-    @apply bg-slate-50 text-slate-900;
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors dark:bg-slate-950 dark:text-slate-100;
+}
+
+@layer components {
+    /* Tarjetas / secciones */
+    .card {
+        @apply rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
+    }
+
+    /* Formularios */
+    .field-label {
+        @apply block text-sm font-medium text-slate-700 dark:text-slate-300;
+    }
+    .field-input,
+    .field-select {
+        @apply mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900
+               placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2
+               focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100
+               dark:placeholder:text-slate-500 dark:focus:border-indigo-400;
+    }
+
+    /* Botones */
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm
+               font-medium text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed
+               disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400;
+    }
+    .btn-secondary {
+        @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 px-4 py-2
+               text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed
+               disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800;
+    }
+    .btn-danger {
+        @apply inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm
+               font-medium text-white transition hover:bg-red-500 disabled:cursor-not-allowed
+               disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-400;
+    }
+    .btn-icon {
+        @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600
+               transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60
+               dark:text-slate-300 dark:hover:bg-slate-800;
+    }
+    .btn-icon-danger {
+        @apply inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-red-600
+               transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60
+               dark:text-red-400 dark:hover:bg-red-950/50;
+    }
+
+    /* Tablas */
+    .table-shell {
+        @apply w-full text-left text-sm;
+    }
+    .table-head-row {
+        @apply border-b border-slate-200 text-slate-500 dark:border-slate-800 dark:text-slate-400;
+    }
+    .table-head-cell {
+        @apply px-4 py-3 font-medium;
+    }
+    .table-row {
+        @apply border-b border-slate-100 last:border-0 dark:border-slate-800/60;
+    }
+    .table-cell {
+        @apply px-4 py-3;
+    }
+
+    /* Badges */
+    .badge-positive {
+        @apply rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700
+               dark:bg-green-500/15 dark:text-green-400;
+    }
+    .badge-neutral {
+        @apply rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600
+               dark:bg-slate-700 dark:text-slate-300;
+    }
+
+    /* Estado vacio de tabla */
+    .empty-state {
+        @apply flex flex-col items-center justify-center gap-2 py-10 text-center text-slate-400
+               dark:text-slate-500;
+    }
+
+    /* Loading skeleton */
+    .skeleton-block {
+        @apply animate-pulse rounded bg-slate-200 dark:bg-slate-700;
+    }
+
+    /* Banner de error inline (formularios) */
+    .banner-error {
+        @apply rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300;
+    }
+
+    /* Migas de pan */
+    .breadcrumb-link {
+        @apply text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400;
+    }
 }
