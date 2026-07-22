@@ -4,40 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Enlaza - Series de facturacion</title>
+    <script src="/common/js/theme-init.js"></script>
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50">
-    <header id="app-nav" class="border-b border-slate-200 bg-white"></header>
+<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
 
     <main class="mx-auto max-w-5xl px-4 py-8">
-        <a href="/contable/dashboard.html" class="text-sm text-indigo-600 hover:underline">&larr; Mis empresas</a>
-        <h1 class="mb-6 mt-2 text-xl font-semibold text-slate-900">Series de facturacion</h1>
+        <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
+        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Series de facturacion</h1>
 
-        <section class="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-            <h2 class="mb-4 text-sm font-semibold text-slate-700">Nueva serie</h2>
+        <section class="card mb-8 p-6">
+            <h2 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Nueva serie</h2>
             <form id="serie-form" class="flex flex-wrap items-end gap-4" novalidate>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Codigo</label>
-                    <input name="codigo" required placeholder="p. ej. FAC-2026"
-                           class="mt-1 w-56 rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                    <label class="field-label">Codigo</label>
+                    <input name="codigo" required placeholder="p. ej. FAC-2026" class="field-input w-56" />
                 </div>
-                <button type="submit" id="submit-button"
-                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                <button type="submit" id="submit-button" class="btn-primary">
                     Crear serie
                 </button>
             </form>
-            <p id="form-error" class="mt-3 hidden rounded-md bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+            <p id="form-error" class="mt-3 hidden banner-error"></p>
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white">
-            <table class="w-full text-left text-sm">
-                <thead class="border-b border-slate-200 text-slate-500">
+        <section class="card">
+            <table class="table-shell">
+                <thead class="table-head-row">
                     <tr>
-                        <th class="px-4 py-3 font-medium">Codigo</th>
-                        <th class="px-4 py-3 font-medium">Ultimo numero</th>
-                        <th class="px-4 py-3 font-medium">Estado</th>
-                        <th class="px-4 py-3 font-medium">Acciones</th>
+                        <th class="table-head-cell">Codigo</th>
+                        <th class="table-head-cell">Ultimo numero</th>
+                        <th class="table-head-cell">Estado</th>
+                        <th class="table-head-cell">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="series-body"></tbody>
@@ -48,12 +47,13 @@
     <script type="module">
         import { apiFetch, ApiError } from '/common/js/apiClient.js';
         import { requireQueryParams } from '/common/js/session.js';
-        import { bootstrapPage } from '/common/js/nav.js';
-        import { escapeHtml, showError, renderBadge, confirmAndRun } from '/common/js/ui.js';
+        import { bootstrapPage, renderBreadcrumbs } from '/common/js/nav.js';
+        import { escapeHtml, showError, renderBadge, confirmAndRun, renderEmptyRow, renderSkeletonRows } from '/common/js/ui.js';
+        import { iconDownload, iconPower, iconCheckCircle } from '/common/js/icons.js';
 
         bootstrapPage('CONTABLE', init);
 
-        function init() {
+        async function init() {
             const query = requireQueryParams(['empresaId'], '/contable/dashboard.html');
             if (!query) {
                 return;
@@ -65,28 +65,41 @@
             const submitButton = document.getElementById('submit-button');
             const tbody = document.getElementById('series-body');
 
+            async function loadBreadcrumbs() {
+                const empresas = await apiFetch('/mis-empresas').catch(() => []);
+                const empresa = empresas.find(e => e.id === empresaId);
+                renderBreadcrumbs([
+                    { label: 'Mis empresas', href: '/contable/dashboard.html' },
+                    { label: empresa ? empresa.razonSocial : 'Empresa' },
+                    { label: 'Series' },
+                ]);
+            }
+
             async function loadSeries() {
+                tbody.innerHTML = renderSkeletonRows(3, 4);
                 const series = await apiFetch(`/empresas/${empresaId}/series`);
                 tbody.innerHTML = series.map(serie => {
                     return `
-                        <tr class="border-b border-slate-100 last:border-0" data-id="${serie.id}">
-                            <td class="px-4 py-3">${escapeHtml(serie.codigo)}</td>
-                            <td class="px-4 py-3">${serie.ultimoNumero}</td>
-                            <td class="px-4 py-3">${renderBadge(serie.activa, 'Activa', 'Inactiva')}</td>
-                            <td class="px-4 py-3">
-                                <div class="flex flex-wrap gap-3">
-                                    <a href="/contable/facturas.html?empresaId=${empresaId}&serieId=${serie.id}"
-                                       class="text-indigo-600 hover:underline">Facturas</a>
-                                    <a href="/contable/verificacion.html?empresaId=${empresaId}&serieId=${serie.id}"
-                                       class="text-indigo-600 hover:underline">Verificar integridad</a>
-                                    <button type="button" data-action="toggle" class="text-slate-600 hover:underline">
-                                        ${serie.activa ? 'Desactivar' : 'Activar'}
+                        <tr class="table-row" data-id="${serie.id}">
+                            <td class="table-cell">${escapeHtml(serie.codigo)}</td>
+                            <td class="table-cell">${serie.ultimoNumero}</td>
+                            <td class="table-cell">${renderBadge(serie.activa, 'Activa', 'Inactiva')}</td>
+                            <td class="table-cell">
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="/contable/facturas.html?empresaId=${empresaId}&serieId=${serie.id}" class="btn-icon">
+                                        ${iconDownload()} Facturas
+                                    </a>
+                                    <a href="/contable/verificacion.html?empresaId=${empresaId}&serieId=${serie.id}" class="btn-icon">
+                                        ${iconCheckCircle('h-4 w-4')} Verificar
+                                    </a>
+                                    <button type="button" data-action="toggle" class="btn-icon">
+                                        ${iconPower()} ${serie.activa ? 'Desactivar' : 'Activar'}
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     `;
-                }).join('') || '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Sin series todavia</td></tr>';
+                }).join('') || renderEmptyRow(4, 'Sin series todavia');
 
                 tbody.querySelectorAll('button[data-action="toggle"]').forEach(button => {
                     button.addEventListener('click', () => {
@@ -97,6 +110,7 @@
                             button,
                             action: () => apiFetch(`/empresas/${empresaId}/series/${id}/${accion}`, { method: 'PATCH' }),
                             onSuccess: loadSeries,
+                            successMessage: serie.activa ? 'Serie desactivada' : 'Serie activada',
                             errorFallback: 'No se pudo actualizar la serie',
                         });
                     });
@@ -122,6 +136,7 @@
                 }
             });
 
+            loadBreadcrumbs();
             loadSeries();
         }
     </script>

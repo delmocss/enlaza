@@ -1,5 +1,7 @@
-import { requireRole, logoutAndRedirect } from './session.js';
+import { requireRole, logoutAndRedirect, homeFor } from './session.js';
 import { escapeHtml } from './ui.js';
+import { mountThemeToggle } from './theme.js';
+import { iconLogo, iconLogout, iconChevronRight } from './icons.js';
 
 const LINKS_BY_ROLE = {
     ADMIN: [
@@ -13,10 +15,16 @@ const LINKS_BY_ROLE = {
     ],
 };
 
+function initials(nombre) {
+    const parts = nombre.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+    return parts.map(part => part[0].toUpperCase()).join('') || '?';
+}
+
 /**
- * Pinta la cabecera comun (enlaces por rol + usuario + logout) dentro del
- * elemento con id="app-nav" que cada pagina ya trae en su HTML. No hay
- * router de cliente: cada enlace es una navegacion normal a otro .html.
+ * Pinta la cabecera comun (logo, enlaces por rol, tema, usuario y logout)
+ * dentro del elemento con id="app-nav" que cada pagina ya trae en su HTML.
+ * No hay router de cliente: cada enlace es una navegacion normal a otro
+ * .html.
  */
 export function renderNav(me) {
     const nav = document.getElementById('app-nav');
@@ -30,27 +38,64 @@ export function renderNav(me) {
     nav.innerHTML = `
         <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <div class="flex items-center gap-6">
-                <span class="text-lg font-semibold text-slate-900">Enlaza</span>
+                <a href="${homeFor(me.role)}" class="flex items-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    ${iconLogo('h-5 w-5 text-indigo-600 dark:text-indigo-400')}
+                    Enlaza
+                </a>
                 <div class="flex gap-4">
                     ${links.map(link => `
                         <a href="${link.href}"
-                           class="text-sm font-medium ${currentPath === link.href ? 'text-indigo-600' : 'text-slate-600 hover:text-indigo-600'}">
+                           class="text-sm font-medium ${currentPath === link.href ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400'}">
                             ${link.label}
                         </a>
                     `).join('')}
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                <span class="text-sm text-slate-500">${escapeHtml(me.nombre)} &middot; ${escapeHtml(me.role)}</span>
-                <button id="logout-button" type="button"
-                        class="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                    Cerrar sesion
+            <div class="flex items-center gap-3">
+                <button id="theme-toggle" type="button" title="Cambiar tema"
+                        class="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+                    <span id="theme-toggle-icon"></span>
+                </button>
+                <div class="flex items-center gap-2 border-l border-slate-200 pl-3 dark:border-slate-800">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
+                        ${escapeHtml(initials(me.nombre))}
+                    </span>
+                    <span class="hidden text-sm text-slate-500 sm:inline dark:text-slate-400">${escapeHtml(me.nombre)} &middot; ${escapeHtml(me.role)}</span>
+                </div>
+                <button id="logout-button" type="button" class="btn-icon">
+                    ${iconLogout('h-4 w-4')}
+                    <span class="hidden sm:inline">Salir</span>
                 </button>
             </div>
         </div>
     `;
 
     document.getElementById('logout-button').addEventListener('click', logoutAndRedirect);
+    mountThemeToggle();
+}
+
+/**
+ * Pinta la traza de migas de pan dentro del elemento con id="breadcrumbs"
+ * que las paginas anidadas traen en su HTML (sustituye al enlace suelto
+ * "&larr; Volver" de antes). `items` es una lista de {label, href?} en orden
+ * de raiz a hoja; el ultimo elemento, y cualquier elemento sin `href` (p.
+ * ej. un nombre de empresa que no tiene pagina propia a la que enlazar), se
+ * pinta como texto plano, no enlace.
+ */
+export function renderBreadcrumbs(items) {
+    const container = document.getElementById('breadcrumbs');
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = items.map((item, index) => {
+        const isLast = index === items.length - 1;
+        const separator = index > 0 ? iconChevronRight('h-3.5 w-3.5 text-slate-300 dark:text-slate-600') : '';
+        const content = (isLast || !item.href)
+            ? `<span class="font-medium text-slate-700 dark:text-slate-300">${escapeHtml(item.label)}</span>`
+            : `<a href="${item.href}" class="breadcrumb-link">${escapeHtml(item.label)}</a>`;
+        return `${separator}${content}`;
+    }).join('');
 }
 
 /**
