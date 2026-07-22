@@ -8,11 +8,13 @@
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <header id="app-nav" class="bg-white dark:bg-stone-800"></header>
 
     <main class="mx-auto max-w-4xl px-4 py-8">
-        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Mis facturas</h1>
+        <h1 class="page-title mb-6">Mis facturas</h1>
+
+        <div id="stats-row" class="mb-6 grid grid-cols-2 gap-4 sm:w-96"></div>
 
         <section class="card">
             <table class="table-shell">
@@ -42,6 +44,19 @@
             const tbody = document.getElementById('facturas-body');
             tbody.innerHTML = renderSkeletonRows(3, 5);
             const facturas = await apiFetch('/mis-facturas');
+
+            const emitidas = facturas.filter(f => f.estado === 'EMITIDA');
+            const totalFacturado = emitidas.reduce((sum, f) => sum + f.total, 0);
+            document.getElementById('stats-row').innerHTML = `
+                <div class="stat-tile">
+                    <p class="stat-tile-label">Facturas emitidas</p>
+                    <p class="stat-tile-value">${emitidas.length}</p>
+                </div>
+                <div class="stat-tile">
+                    <p class="stat-tile-label">Total facturado</p>
+                    <p class="stat-tile-value">${formatCurrency(totalFacturado)}</p>
+                </div>
+            `;
 
             tbody.innerHTML = facturas.map(factura => {
                 return `

@@ -8,15 +8,15 @@
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <header id="app-nav" class="bg-white dark:bg-stone-800"></header>
 
     <main class="mx-auto max-w-5xl px-4 py-8">
         <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
-        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Facturas</h1>
+        <h1 class="page-title mb-6">Facturas</h1>
 
         <section class="card mb-8 p-6">
-            <h2 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Nueva factura</h2>
+            <h2 class="mb-4 text-sm font-semibold text-stone-700 dark:text-stone-300">Nueva factura</h2>
             <form id="factura-form" novalidate>
                 <div class="mb-4">
                     <label class="field-label">Cliente</label>
@@ -24,7 +24,7 @@
                 </div>
 
                 <table class="mb-4 w-full text-left text-sm">
-                    <thead class="text-slate-500 dark:text-slate-400">
+                    <thead class="text-stone-500 dark:text-stone-400">
                         <tr>
                             <th class="px-2 py-2 font-medium">Descripcion</th>
                             <th class="px-2 py-2 font-medium">Cantidad</th>
@@ -43,12 +43,12 @@
                 </button>
 
                 <div class="mb-4 grid grid-cols-2 gap-2 text-sm sm:w-72">
-                    <span class="text-slate-500 dark:text-slate-400">Base imponible</span><span id="preview-base" class="text-right font-medium">0,00 €</span>
-                    <span class="text-slate-500 dark:text-slate-400">IVA</span><span id="preview-iva" class="text-right font-medium">0,00 €</span>
-                    <span class="text-slate-500 dark:text-slate-400">IRPF</span><span id="preview-irpf" class="text-right font-medium">0,00 €</span>
-                    <span class="font-semibold text-slate-700 dark:text-slate-300">Total</span><span id="preview-total" class="text-right font-semibold">0,00 €</span>
+                    <span class="text-stone-500 dark:text-stone-400">Base imponible</span><span id="preview-base" class="text-right font-medium">0,00 €</span>
+                    <span class="text-stone-500 dark:text-stone-400">IVA</span><span id="preview-iva" class="text-right font-medium">0,00 €</span>
+                    <span class="text-stone-500 dark:text-stone-400">IRPF</span><span id="preview-irpf" class="text-right font-medium">0,00 €</span>
+                    <span class="font-semibold text-canela-700 dark:text-canela-400">Total</span><span id="preview-total" class="text-right font-semibold text-canela-700 dark:text-canela-400">0,00 €</span>
                 </div>
-                <p class="mb-4 text-xs text-slate-400 dark:text-slate-500">
+                <p class="mb-4 text-xs text-stone-400 dark:text-stone-500">
                     El calculo de arriba es solo una previsualizacion en el navegador; los importes definitivos los calcula y firma el servidor al crear la factura.
                 </p>
 

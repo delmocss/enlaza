@@ -8,14 +8,16 @@
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <header id="app-nav" class="bg-white dark:bg-stone-800"></header>
 
     <main class="mx-auto max-w-5xl px-4 py-8">
-        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Empresas</h1>
+        <h1 class="page-title mb-6">Empresas</h1>
+
+        <div id="stats-row" class="mb-6 grid grid-cols-2 gap-4 sm:w-96"></div>
 
         <section class="card mb-8 p-6">
-            <h2 id="form-title" class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Nueva empresa</h2>
+            <h2 id="form-title" class="mb-4 text-sm font-semibold text-stone-700 dark:text-stone-300">Nueva empresa</h2>
             <form id="empresa-form" class="grid grid-cols-1 gap-4 sm:grid-cols-2" novalidate>
                 <div class="sm:col-span-2">
                     <label class="field-label">Razon social</label>
@@ -128,10 +130,25 @@
                 `;
             }
 
+            function renderStats(empresas) {
+                const activas = empresas.filter(e => e.activa).length;
+                document.getElementById('stats-row').innerHTML = `
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Empresas</p>
+                        <p class="stat-tile-value">${empresas.length}</p>
+                    </div>
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Activas</p>
+                        <p class="stat-tile-value">${activas}</p>
+                    </div>
+                `;
+            }
+
             async function loadEmpresas() {
                 tbody.innerHTML = renderSkeletonRows(3, 4);
                 const empresas = await apiFetch('/empresas');
                 tbody.innerHTML = empresas.map(renderRow).join('') || renderEmptyRow(4, 'Sin empresas todavia');
+                renderStats(empresas);
 
                 tbody.querySelectorAll('button[data-action="editar"]').forEach(button => {
                     button.addEventListener('click', () => {
