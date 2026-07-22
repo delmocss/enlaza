@@ -83,9 +83,9 @@ function getToastContainer() {
 }
 
 const TOAST_TONES = {
-    success: 'border-green-200 bg-white text-green-800 dark:border-green-900 dark:bg-slate-900 dark:text-green-300',
-    error: 'border-red-200 bg-white text-red-800 dark:border-red-900 dark:bg-slate-900 dark:text-red-300',
-    info: 'border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300',
+    success: 'border-green-200 bg-white text-green-800 dark:border-green-900 dark:bg-stone-800 dark:text-green-300',
+    error: 'border-red-200 bg-white text-red-800 dark:border-red-900 dark:bg-stone-800 dark:text-red-300',
+    info: 'border-stone-200 bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300',
 };
 
 /** Notificacion flotante y autodesvanecida. Sustituye a alert() para no bloquear la interfaz. */
@@ -115,12 +115,12 @@ export function showToast(message, type = 'info') {
 export function showConfirmModal({ message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false }) {
     return new Promise((resolve) => {
         const backdrop = document.createElement('div');
-        backdrop.className = 'fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm dark:bg-slate-950/60';
+        backdrop.className = 'fixed inset-0 z-40 flex items-center justify-center bg-stone-900/40 p-4 backdrop-blur-sm dark:bg-stone-950/60';
 
         const panel = document.createElement('div');
-        panel.className = 'w-full max-w-sm rounded-lg border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900';
+        panel.className = 'w-full max-w-sm rounded-lg border border-stone-200 bg-white p-6 shadow-xl dark:border-stone-700 dark:bg-stone-800';
         panel.innerHTML = `
-            <p class="text-sm text-slate-700 dark:text-slate-300">${escapeHtml(message)}</p>
+            <p class="text-sm text-stone-700 dark:text-stone-300">${escapeHtml(message)}</p>
             <div class="mt-5 flex justify-end gap-3">
                 <button type="button" data-role="cancel" class="btn-secondary">${escapeHtml(cancelLabel)}</button>
                 <button type="button" data-role="confirm" class="${danger ? 'btn-danger' : 'btn-primary'}">${escapeHtml(confirmLabel)}</button>
