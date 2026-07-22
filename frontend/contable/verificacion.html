@@ -21,6 +21,11 @@
                 <p>Comprobando la cadena de hashes...</p>
             </div>
         </section>
+
+        <section id="chain-section" class="card mt-6 hidden p-6">
+            <h2 class="mb-4 text-sm font-semibold text-stone-700 dark:text-stone-300">Cadena de facturas</h2>
+            <div id="chain" class="flex flex-wrap items-center gap-1"></div>
+        </section>
     </main>
 
     <script type="module">
@@ -28,7 +33,7 @@
         import { requireQueryParams } from '/common/js/session.js';
         import { bootstrapPage, renderBreadcrumbs } from '/common/js/nav.js';
         import { escapeHtml } from '/common/js/ui.js';
-        import { iconCheckCircle, iconXCircle } from '/common/js/icons.js';
+        import { iconCheckCircle, iconXCircle, iconChevronRight } from '/common/js/icons.js';
 
         bootstrapPage('CONTABLE', init);
 
@@ -55,11 +60,44 @@
             }
 
             const result = document.getElementById('result');
+            const chainSection = document.getElementById('chain-section');
+            const chain = document.getElementById('chain');
+
+            /**
+             * Fila visual de bloques (uno por factura, en orden) enlazados por
+             * flechas, en verde hasta el punto de rotura (o todos si la cadena
+             * esta integra) y en rojo desde ahi en adelante. Reutiliza el mismo
+             * endpoint de listado que factura.html, sin llamada nueva al
+             * backend -- solo para dar una representacion visual de la cadena,
+             * la verificacion real ya la hizo el servidor.
+             */
+            function renderChain(facturas, verificacion) {
+                if (facturas.length === 0) {
+                    chainSection.classList.add('hidden');
+                    return;
+                }
+                const rotaDesde = verificacion.integra ? null : verificacion.numero;
+                const ordenadas = [...facturas].sort((a, b) => a.numero - b.numero);
+                chain.innerHTML = ordenadas.map((factura, index) => {
+                    const rota = rotaDesde !== null && factura.numero >= rotaDesde;
+                    const tone = rota
+                        ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400'
+                        : 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400';
+                    const separator = index > 0 ? iconChevronRight('h-4 w-4 shrink-0 text-stone-300 dark:text-stone-600') : '';
+                    return `${separator}<span title="Factura ${factura.numero}" class="flex h-9 min-w-9 items-center justify-center rounded-md border px-2 text-xs font-semibold ${tone}">${factura.numero}</span>`;
+                }).join('');
+                chainSection.classList.remove('hidden');
+            }
 
             loadBreadcrumbs();
 
             try {
-                const verificacion = await apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas/verificacion`);
+                const [verificacion, facturas] = await Promise.all([
+                    apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas/verificacion`),
+                    apiFetch(`/empresas/${empresaId}/series/${serieId}/facturas`).catch(() => []),
+                ]);
+
+                renderChain(facturas, verificacion);
 
                 if (verificacion.integra) {
                     result.innerHTML = `
