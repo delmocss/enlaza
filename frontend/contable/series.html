@@ -15,6 +15,8 @@
         <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
         <h1 class="page-title mb-6">Series de facturacion</h1>
 
+        <div id="stats-row" class="mb-6 grid grid-cols-3 gap-4 sm:w-[28rem]"></div>
+
         <section class="card mb-8 p-6">
             <h2 class="mb-4 text-sm font-semibold text-stone-700 dark:text-stone-300">Nueva serie</h2>
             <form id="serie-form" class="flex flex-wrap items-end gap-4" novalidate>
@@ -75,9 +77,29 @@
                 ]);
             }
 
+            function renderStats(series) {
+                const activas = series.filter(s => s.activa).length;
+                const totalFacturas = series.reduce((sum, s) => sum + s.ultimoNumero, 0);
+                document.getElementById('stats-row').innerHTML = `
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Series</p>
+                        <p class="stat-tile-value">${series.length}</p>
+                    </div>
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Activas</p>
+                        <p class="stat-tile-value">${activas}</p>
+                    </div>
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Facturas</p>
+                        <p class="stat-tile-value">${totalFacturas}</p>
+                    </div>
+                `;
+            }
+
             async function loadSeries() {
                 tbody.innerHTML = renderSkeletonRows(3, 4);
                 const series = await apiFetch(`/empresas/${empresaId}/series`);
+                renderStats(series);
                 tbody.innerHTML = series.map(serie => {
                     return `
                         <tr class="table-row" data-id="${serie.id}">

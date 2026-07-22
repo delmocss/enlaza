@@ -18,6 +18,8 @@
             Solo lectura y baja: la asignacion de un CONTABLE nuevo se hace desde los usuarios semilla del sistema, no desde esta pantalla.
         </p>
 
+        <div id="stats-row" class="mb-6 grid grid-cols-1 gap-4 sm:w-48"></div>
+
         <section class="card">
             <table class="table-shell">
                 <thead class="table-head-row">
@@ -62,6 +64,14 @@
             async function loadContables() {
                 tbody.innerHTML = renderSkeletonRows(3, 4);
                 const contables = await apiFetch(`/empresas/${empresaId}/contables`);
+
+                document.getElementById('stats-row').innerHTML = `
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Contables asignados</p>
+                        <p class="stat-tile-value">${contables.length}</p>
+                    </div>
+                `;
+
                 tbody.innerHTML = contables.map(contable => `
                     <tr class="table-row" data-id="${contable.usuarioId}">
                         <td class="table-cell">${escapeHtml(contable.nombre)}</td>

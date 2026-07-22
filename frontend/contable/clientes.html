@@ -15,6 +15,8 @@
         <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
         <h1 class="page-title mb-6">Clientes</h1>
 
+        <div id="stats-row" class="mb-6 grid grid-cols-1 gap-4 sm:w-48"></div>
+
         <section class="card mb-8 p-6">
             <h2 id="form-title" class="mb-4 text-sm font-semibold text-stone-700 dark:text-stone-300">Nuevo cliente</h2>
             <form id="cliente-form" class="grid grid-cols-1 gap-4 sm:grid-cols-2" novalidate>
@@ -121,6 +123,14 @@
             async function loadClientes() {
                 tbody.innerHTML = renderSkeletonRows(3, 4);
                 const clientes = await apiFetch(`/empresas/${empresaId}/clientes`);
+
+                document.getElementById('stats-row').innerHTML = `
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Clientes</p>
+                        <p class="stat-tile-value">${clientes.length}</p>
+                    </div>
+                `;
+
                 tbody.innerHTML = clientes.map(cliente => `
                     <tr class="table-row" data-id="${cliente.id}">
                         <td class="table-cell">${escapeHtml(cliente.nombre)}</td>
