@@ -1,20 +1,155 @@
-
 <!doctype html>
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Enlaza</title>
+    <title>Enlaza - Facturacion con cadena de integridad verificable</title>
+    <meta name="description" content="Portfolio backend: facturacion electronica multi-empresa con cadena de hashes verificable, RBAC de 3 roles y verificacion de integridad en un clic." />
     <script src="/common/js/theme-init.js"></script>
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="flex min-h-screen items-center justify-center bg-stone-100 dark:bg-stone-900">
-    <p class="text-sm text-stone-500 dark:text-stone-400">Cargando...</p>
-    <script type="module">
-        import { resolveHome } from '/common/js/session.js';
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <div id="loading" class="flex min-h-screen items-center justify-center">
+        <p class="text-sm text-stone-500 dark:text-stone-400">Cargando...</p>
+    </div>
 
-        resolveHome();
+    <div id="landing" class="hidden">
+        <header class="bg-white dark:bg-stone-800">
+            <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+                <span class="flex items-center gap-2 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                    <span id="header-logo" class="text-canela-600 dark:text-canela-400"></span>
+                    Enlaza
+                </span>
+                <div class="flex items-center gap-3">
+                    <button id="theme-toggle" type="button" title="Cambiar tema"
+                            class="rounded-md p-2 text-stone-500 transition hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-700">
+                        <span id="theme-toggle-icon"></span>
+                    </button>
+                    <a href="/login.html" class="btn-primary">Acceder</a>
+                </div>
+            </div>
+            <div class="h-0.5 bg-gradient-to-r from-canela-300 via-canela-500 to-canela-300 dark:from-canela-800 dark:via-canela-600 dark:to-canela-800"></div>
+        </header>
+
+        <section class="bg-gradient-to-br from-stone-100 to-canela-50 px-4 py-20 text-center dark:from-stone-900 dark:to-stone-800">
+            <h1 class="mx-auto max-w-3xl text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl dark:text-stone-100">
+                Facturacion electronica con cadena de integridad verificable
+            </h1>
+            <p class="mx-auto mt-4 max-w-2xl text-stone-600 dark:text-stone-300">
+                Cada factura queda enlazada a la anterior de su serie mediante un hash SHA-256.
+                Multi-empresa, con roles de Administrador, Contable y Cliente, y una comprobacion
+                de integridad de toda la cadena en un clic.
+            </p>
+            <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+                <a href="/login.html" class="btn-primary">Probar la demo</a>
+                <a href="https://github.com/delmocss/enlaza" target="_blank" rel="noopener" class="btn-secondary">
+                    <span id="github-icon"></span> Ver el codigo en GitHub
+                </a>
+            </div>
+        </section>
+
+        <main class="mx-auto max-w-5xl px-4 py-16">
+            <div id="features-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+
+            <section class="card mt-16 p-6">
+                <h2 class="text-lg font-bold text-stone-900 dark:text-stone-100">Cuentas de demostracion</h2>
+                <p class="mb-4 mt-1 text-sm text-stone-500 dark:text-stone-400">
+                    Publicas a proposito, para poder probar los tres roles sin preparar nada.
+                </p>
+                <table class="table-shell">
+                    <thead class="table-head-row">
+                        <tr>
+                            <th class="table-head-cell">Rol</th>
+                            <th class="table-head-cell">Email</th>
+                            <th class="table-head-cell">Contrasena</th>
+                            <th class="table-head-cell"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="demo-accounts-body"></tbody>
+                </table>
+            </section>
+        </main>
+
+        <footer class="border-t border-stone-200 px-4 py-8 text-center text-xs text-stone-400 dark:border-stone-700 dark:text-stone-500">
+            Proyecto de portfolio inspirado en los requisitos tecnicos de VeriFactu (Espana) &mdash; no certifica
+            cumplimiento legal real.
+            <a href="https://github.com/delmocss/enlaza" target="_blank" rel="noopener" class="text-canela-700 hover:underline dark:text-canela-400">Codigo en GitHub</a>.
+        </footer>
+    </div>
+
+    <script type="module">
+        import { hasStoredSession } from '/common/js/apiClient.js';
+        import { resolveHome } from '/common/js/session.js';
+        import { mountThemeToggle } from '/common/js/theme.js';
+        import { escapeHtml } from '/common/js/ui.js';
+        import { iconLogo, iconLayers, iconUsers, iconCheckCircle, iconDownload, iconShield, iconGithub } from '/common/js/icons.js';
+
+        const FEATURES = [
+            { icon: iconLayers, title: 'Multi-empresa', text: 'Un Administrador gestiona varias empresas; cada una con sus propias series de facturacion.' },
+            { icon: iconLogo, title: 'Cadena de integridad', text: 'Cada factura incluye el hash de la anterior de su serie (SHA-256), a prueba de manipulacion.' },
+            { icon: iconUsers, title: 'Roles y permisos', text: 'Administrador, Contable y Cliente: cada uno ve y puede hacer solo lo que le corresponde.' },
+            { icon: iconCheckCircle, title: 'Verificacion en un clic', text: 'Recorre toda la cadena de una serie y detecta cualquier rotura, indicando donde y por que.' },
+            { icon: iconDownload, title: 'Exportacion a PDF', text: 'Cada factura se puede descargar como documento listo para el cliente.' },
+            { icon: iconShield, title: 'Autenticacion segura', text: 'JWT con rotacion de refresh token de un solo uso y deteccion de robo de sesion.' },
+        ];
+
+        const DEMO_ACCOUNTS = [
+            { role: 'ADMIN', email: 'admin@enlaza.dev', password: 'Admin123!' },
+            { role: 'CONTABLE', email: 'contable@enlaza.dev', password: 'Contable123!' },
+            { role: 'CLIENTE', email: 'cliente@enlaza.dev', password: 'Cliente123!' },
+        ];
+
+        if (hasStoredSession()) {
+            resolveHome();
+        } else {
+            renderLanding();
+        }
+
+        function renderLanding() {
+            document.getElementById('header-logo').innerHTML = iconLogo('h-5 w-5');
+            document.getElementById('github-icon').innerHTML = iconGithub();
+
+            document.getElementById('features-grid').innerHTML = FEATURES.map(feature => `
+                <div class="card p-5">
+                    <span class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-canela-100 text-canela-700 dark:bg-canela-500/15 dark:text-canela-400">
+                        ${feature.icon('h-5 w-5')}
+                    </span>
+                    <h3 class="mb-1 font-semibold text-stone-900 dark:text-stone-100">${escapeHtml(feature.title)}</h3>
+                    <p class="text-sm text-stone-500 dark:text-stone-400">${escapeHtml(feature.text)}</p>
+                </div>
+            `).join('');
+
+            document.getElementById('demo-accounts-body').innerHTML = DEMO_ACCOUNTS.map(account => `
+                <tr class="table-row">
+                    <td class="table-cell"><span class="badge-neutral">${escapeHtml(account.role)}</span></td>
+                    <td class="table-cell font-mono text-xs">${escapeHtml(account.email)}</td>
+                    <td class="table-cell font-mono text-xs">${escapeHtml(account.password)}</td>
+                    <td class="table-cell">
+                        <button type="button" data-email="${escapeHtml(account.email)}" data-password="${escapeHtml(account.password)}" class="btn-icon">Copiar</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.querySelectorAll('#demo-accounts-body button').forEach(button => {
+                button.addEventListener('click', async () => {
+                    const text = `${button.dataset.email} / ${button.dataset.password}`;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        const original = button.textContent;
+                        button.textContent = 'Copiado';
+                        setTimeout(() => { button.textContent = original; }, 1500);
+                    } catch {
+                        // Clipboard no disponible (p. ej. permiso denegado): las credenciales
+                        // ya estan visibles en la tabla, no hace falta un aviso adicional.
+                    }
+                });
+            });
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('landing').classList.remove('hidden');
+            mountThemeToggle();
+        }
     </script>
 </body>
 </html>

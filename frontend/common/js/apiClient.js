@@ -32,6 +32,16 @@ function getRefreshToken() {
     return sessionStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
+/**
+ * Comprobacion barata y sin red de "hay algo guardado que parece una
+ * sesion". Usado solo por index.html para decidir, sin arriesgarse al
+ * redirect-a-login-html de apiFetch en 401, si debe intentar resolver la
+ * pagina de inicio del usuario o mostrar la landing publica directamente.
+ */
+export function hasStoredSession() {
+    return Boolean(getRefreshToken());
+}
+
 function storeTokens(tokens) {
     accessToken = tokens.accessToken;
     sessionStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
