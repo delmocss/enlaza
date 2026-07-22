@@ -18,17 +18,17 @@
  * baja de stone-900 para evitar un negro frio.
  */
 @theme {
-    --color-canela-50: oklch(97% 0.015 60);
-    --color-canela-100: oklch(93% 0.03 55);
-    --color-canela-200: oklch(86% 0.05 50);
-    --color-canela-300: oklch(77% 0.07 45);
-    --color-canela-400: oklch(67% 0.09 42);
-    --color-canela-500: oklch(58% 0.1 40);
-    --color-canela-600: oklch(49% 0.1 38);
-    --color-canela-700: oklch(41% 0.09 36);
-    --color-canela-800: oklch(34% 0.075 34);
-    --color-canela-900: oklch(28% 0.06 32);
-    --color-canela-950: oklch(20% 0.045 30);
+    --color-canela-50: oklch(97% 0.012 75);
+    --color-canela-100: oklch(93% 0.025 72);
+    --color-canela-200: oklch(86% 0.04 68);
+    --color-canela-300: oklch(77% 0.055 65);
+    --color-canela-400: oklch(67% 0.07 62);
+    --color-canela-500: oklch(58% 0.078 60);
+    --color-canela-600: oklch(50% 0.078 58);
+    --color-canela-700: oklch(43% 0.07 56);
+    --color-canela-800: oklch(36% 0.06 54);
+    --color-canela-900: oklch(29% 0.048 52);
+    --color-canela-950: oklch(21% 0.035 50);
 }
 
 body {
