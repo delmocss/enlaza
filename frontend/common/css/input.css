@@ -111,6 +111,9 @@ body {
     .table-head-cell {
         @apply px-4 py-3 font-medium;
     }
+    .sort-header {
+        @apply inline-flex items-center gap-1 transition-colors hover:text-stone-700 dark:hover:text-stone-200;
+    }
     .table-row {
         @apply border-b border-stone-100 transition-colors last:border-0 hover:bg-canela-50/60
                dark:border-stone-700/60 dark:hover:bg-stone-700/40;

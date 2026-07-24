@@ -1,5 +1,5 @@
 import { ApiError } from './apiClient.js';
-import { iconInbox } from './icons.js';
+import { iconInbox, iconChevronUp, iconChevronDown, iconShield, iconCopy } from './icons.js';
 
 /**
  * escapeHtml es obligatorio en cualquier campo de texto que venga de la API
@@ -69,6 +69,135 @@ export function renderEmptyRow(colspan, message) {
 export function renderSkeletonRows(count, columns) {
     const cells = Array.from({ length: columns }, () => '<td class="table-cell"><div class="skeleton-block h-4 w-full"></div></td>').join('');
     return Array.from({ length: count }, () => `<tr class="table-row">${cells}</tr>`).join('');
+}
+
+/** Recorta un hash SHA-256 para mostrarlo en linea sin romper el layout ("a1b2c3d4...f0e1d2"). */
+export function truncateHash(hash) {
+    if (!hash) {
+        return '—';
+    }
+    return hash.length <= 16 ? hash : `${hash.slice(0, 8)}…${hash.slice(-6)}`;
+}
+
+/**
+ * Fila expandible con el desglose fiscal, las lineas y los hashes de una
+ * factura -- la API ya devuelve todo esto en la misma respuesta de listado
+ * (FacturaResponse), asi que no hace falta ninguna peticion nueva al
+ * expandir. `colspan` debe igualar el numero de columnas de la tabla que
+ * la contiene.
+ */
+export function renderFacturaDetailRow(factura, colspan) {
+    const lineas = factura.lineas ?? [];
+    return `
+        <tr class="border-b border-stone-100 last:border-0 dark:border-stone-700/60">
+            <td colspan="${colspan}" class="bg-stone-50/70 px-4 py-4 dark:bg-stone-900/30">
+                <div class="grid gap-6 sm:grid-cols-2">
+                    <div>
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Desglose fiscal</h3>
+                        <dl class="grid grid-cols-2 gap-y-1 text-sm">
+                            <dt class="text-stone-500 dark:text-stone-400">Base imponible</dt>
+                            <dd class="text-right font-medium">${formatCurrency(factura.baseImponible)}</dd>
+                            <dt class="text-stone-500 dark:text-stone-400">IVA</dt>
+                            <dd class="text-right font-medium">${formatCurrency(factura.totalIva)}</dd>
+                            <dt class="text-stone-500 dark:text-stone-400">IRPF</dt>
+                            <dd class="text-right font-medium">${factura.totalIrpf > 0 ? '-' : ''}${formatCurrency(factura.totalIrpf)}</dd>
+                            <dt class="font-semibold text-canela-700 dark:text-canela-400">Total</dt>
+                            <dd class="text-right font-semibold text-canela-700 dark:text-canela-400">${formatCurrency(factura.total)}</dd>
+                        </dl>
+                    </div>
+                    <div>
+                        <h3 class="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                            ${iconShield('h-3.5 w-3.5')} Integridad de la cadena
+                        </h3>
+                        <dl class="space-y-1.5 text-xs">
+                            <div class="flex items-center gap-2">
+                                <dt class="w-24 shrink-0 text-stone-500 dark:text-stone-400">Hash anterior</dt>
+                                <dd class="truncate font-mono" title="${escapeHtml(factura.hashAnterior ?? '')}">${escapeHtml(truncateHash(factura.hashAnterior))}</dd>
+                                <button type="button" data-copy="${escapeHtml(factura.hashAnterior ?? '')}" class="btn-icon shrink-0 px-1.5 py-0.5" aria-label="Copiar hash anterior">${iconCopy()}</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <dt class="w-24 shrink-0 text-stone-500 dark:text-stone-400">Hash actual</dt>
+                                <dd class="truncate font-mono" title="${escapeHtml(factura.hashActual ?? '')}">${escapeHtml(truncateHash(factura.hashActual))}</dd>
+                                <button type="button" data-copy="${escapeHtml(factura.hashActual ?? '')}" class="btn-icon shrink-0 px-1.5 py-0.5" aria-label="Copiar hash actual">${iconCopy()}</button>
+                            </div>
+                        </dl>
+                    </div>
+                </div>
+                ${lineas.length ? `
+                    <div class="mt-4">
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">Lineas</h3>
+                        <table class="w-full text-left text-xs">
+                            <thead class="text-stone-500 dark:text-stone-400">
+                                <tr>
+                                    <th class="px-2 py-1 font-medium">Descripcion</th>
+                                    <th class="px-2 py-1 font-medium">Cantidad</th>
+                                    <th class="px-2 py-1 font-medium">Precio</th>
+                                    <th class="px-2 py-1 font-medium">IVA %</th>
+                                    <th class="px-2 py-1 font-medium">IRPF %</th>
+                                    <th class="px-2 py-1 text-right font-medium">Importe</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${lineas.map(linea => `
+                                    <tr class="border-t border-stone-100 dark:border-stone-700/60">
+                                        <td class="px-2 py-1.5">${escapeHtml(linea.descripcion)}</td>
+                                        <td class="px-2 py-1.5">${linea.cantidad}</td>
+                                        <td class="px-2 py-1.5">${formatCurrency(linea.precioUnitario)}</td>
+                                        <td class="px-2 py-1.5">${linea.porcentajeIva}%</td>
+                                        <td class="px-2 py-1.5">${linea.porcentajeIrpf}%</td>
+                                        <td class="px-2 py-1.5 text-right">${formatCurrency(linea.importeTotal)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : ''}
+            </td>
+        </tr>
+    `;
+}
+
+/** Conecta los botones "copiar hash" (data-copy) de una fila de detalle ya insertada en el DOM. */
+export function bindCopyButtons(container) {
+    container.querySelectorAll('[data-copy]').forEach(button => {
+        button.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            try {
+                await navigator.clipboard.writeText(button.dataset.copy);
+                showToast('Hash copiado', 'success');
+            } catch {
+                showToast('No se pudo copiar el hash', 'error');
+            }
+        });
+    });
+}
+
+/** Alterna el estado de orden de una tabla: misma columna invierte direccion, columna nueva empieza en 'asc'. */
+export function toggleSort(current, key) {
+    if (current.key === key) {
+        return { key, dir: current.dir === 'asc' ? 'desc' : 'asc' };
+    }
+    return { key, dir: 'asc' };
+}
+
+/** Copia y ordena `items` por `accessor(item, key)`, sin mutar el array original. */
+export function sortItems(items, key, dir, accessor) {
+    const factor = dir === 'asc' ? 1 : -1;
+    return [...items].sort((a, b) => {
+        const av = accessor(a, key);
+        const bv = accessor(b, key);
+        if (av < bv) return -1 * factor;
+        if (av > bv) return 1 * factor;
+        return 0;
+    });
+}
+
+/** Icono de direccion para una cabecera ordenable; vacio si esa columna no es la activa. */
+export function sortIndicator(sortState, key) {
+    if (sortState.key !== key) {
+        return '';
+    }
+    return sortState.dir === 'asc' ? iconChevronUp() : iconChevronDown();
 }
 
 let toastContainer = null;

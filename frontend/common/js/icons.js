@@ -99,6 +99,26 @@ export const iconLayers = (cls = 'h-6 w-6') => svgIcon(
     cls,
 );
 
+export const iconSearch = (cls = 'h-4 w-4') => svgIcon(
+    '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    cls,
+);
+
+export const iconCopy = (cls = 'h-3.5 w-3.5') => svgIcon(
+    '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    cls,
+);
+
+export const iconChevronUp = (cls = 'h-3.5 w-3.5') => svgIcon(
+    '<polyline points="18 15 12 9 6 15"/>',
+    cls,
+);
+
+export const iconChevronDown = (cls = 'h-3.5 w-3.5') => svgIcon(
+    '<polyline points="6 9 12 15 18 9"/>',
+    cls,
+);
+
 export const iconGithub = (cls = 'h-4 w-4') => svgIcon(
     '<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
     cls,
