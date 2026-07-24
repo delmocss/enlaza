@@ -172,6 +172,14 @@ export function bindCopyButtons(container) {
     });
 }
 
+/** Accessor de orden compartido por las tablas de factura de cliente/ y contable/: fechas se comparan como epoch, el resto por valor directo. */
+export function facturaSortAccessor(factura, key) {
+    if (key === 'fechaEmision') {
+        return new Date(factura.fechaEmision).getTime();
+    }
+    return factura[key];
+}
+
 /** Alterna el estado de orden de una tabla: misma columna invierte direccion, columna nueva empieza en 'asc'. */
 export function toggleSort(current, key) {
     if (current.key === key) {

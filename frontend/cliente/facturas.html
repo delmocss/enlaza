@@ -47,17 +47,10 @@
     <script type="module">
         import { apiFetch, apiFetchBlob } from '/common/js/apiClient.js';
         import { bootstrapPage } from '/common/js/nav.js';
-        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun, renderEmptyRow, renderSkeletonRows, toggleSort, sortItems, sortIndicator, renderFacturaDetailRow, bindCopyButtons } from '/common/js/ui.js';
+        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun, renderEmptyRow, renderSkeletonRows, toggleSort, sortItems, sortIndicator, facturaSortAccessor, renderFacturaDetailRow, bindCopyButtons } from '/common/js/ui.js';
         import { iconDownload, iconSearch, iconChevronDown, iconChevronUp } from '/common/js/icons.js';
 
         bootstrapPage('CLIENTE', init);
-
-        function sortAccessor(factura, key) {
-            if (key === 'fechaEmision') {
-                return new Date(factura.fechaEmision).getTime();
-            }
-            return factura[key];
-        }
 
         async function init() {
             const tbody = document.getElementById('facturas-body');
@@ -92,7 +85,7 @@
                     const matchesEstado = !estado || f.estado === estado;
                     return matchesQuery && matchesEstado;
                 });
-                visibles = sortItems(visibles, sortState.key, sortState.dir, sortAccessor);
+                visibles = sortItems(visibles, sortState.key, sortState.dir, facturaSortAccessor);
 
                 tbody.innerHTML = visibles.map(factura => {
                     const expanded = expandedIds.has(factura.id);

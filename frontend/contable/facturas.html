@@ -92,7 +92,7 @@
         import { apiFetch, apiFetchBlob, ApiError } from '/common/js/apiClient.js';
         import { requireQueryParams } from '/common/js/session.js';
         import { bootstrapPage, renderBreadcrumbs } from '/common/js/nav.js';
-        import { escapeHtml, showError, renderBadge, confirmAndRun, formatCurrency, formatDate, downloadBlob, renderEmptyRow, renderSkeletonRows, toggleSort, sortItems, sortIndicator, renderFacturaDetailRow, bindCopyButtons } from '/common/js/ui.js';
+        import { escapeHtml, showError, renderBadge, confirmAndRun, formatCurrency, formatDate, downloadBlob, renderEmptyRow, renderSkeletonRows, toggleSort, sortItems, sortIndicator, facturaSortAccessor, renderFacturaDetailRow, bindCopyButtons } from '/common/js/ui.js';
         import { iconDownload, iconTrash, iconXCircle, iconSearch, iconChevronDown, iconChevronUp } from '/common/js/icons.js';
 
         bootstrapPage('CONTABLE', init);
@@ -124,13 +124,6 @@
             let facturasCache = [];
             let sortState = { key: 'numero', dir: 'desc' };
             const expandedIds = new Set();
-
-            function sortAccessor(factura, key) {
-                if (key === 'fechaEmision') {
-                    return new Date(factura.fechaEmision).getTime();
-                }
-                return factura[key];
-            }
 
             async function loadBreadcrumbs() {
                 const [empresas, series] = await Promise.all([
@@ -219,7 +212,7 @@
                     const matchesEstado = !estado || factura.estado === estado;
                     return matchesQuery && matchesEstado;
                 });
-                visibles = sortItems(visibles, sortState.key, sortState.dir, sortAccessor);
+                visibles = sortItems(visibles, sortState.key, sortState.dir, facturaSortAccessor);
 
                 facturasBody.innerHTML = visibles.map(factura => {
                     const cliente = clientesById.get(factura.clienteId);
