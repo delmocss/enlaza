@@ -8,19 +8,33 @@
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <header id="app-nav" class="bg-white dark:bg-stone-800"></header>
 
     <main class="mx-auto max-w-4xl px-4 py-8">
-        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Mis facturas</h1>
+        <h1 class="page-title mb-6">Mis facturas</h1>
+
+        <div id="stats-row" class="mb-6 grid grid-cols-2 gap-4 sm:w-96"></div>
 
         <section class="card">
+            <div class="flex flex-col gap-3 border-b border-stone-200 p-4 dark:border-stone-700 sm:flex-row sm:items-center sm:justify-between">
+                <div class="relative w-full sm:max-w-xs">
+                    <input id="search-input" type="search" placeholder="Buscar por numero..." class="field-input mt-0 pl-9" />
+                    <span id="search-icon" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"></span>
+                </div>
+                <select id="estado-filter" class="field-select mt-0 sm:w-40">
+                    <option value="">Todos los estados</option>
+                    <option value="EMITIDA">Emitida</option>
+                    <option value="ANULADA">Anulada</option>
+                </select>
+            </div>
             <table class="table-shell">
                 <thead class="table-head-row">
                     <tr>
-                        <th class="table-head-cell">Numero</th>
-                        <th class="table-head-cell">Fecha</th>
-                        <th class="table-head-cell">Total</th>
+                        <th class="table-head-cell w-8"><span class="sr-only">Detalle</span></th>
+                        <th class="table-head-cell"><button type="button" data-sort="numero" class="sort-header">Numero <span data-sort-icon="numero"></span></button></th>
+                        <th class="table-head-cell"><button type="button" data-sort="fechaEmision" class="sort-header">Fecha <span data-sort-icon="fechaEmision"></span></button></th>
+                        <th class="table-head-cell"><button type="button" data-sort="total" class="sort-header">Total <span data-sort-icon="total"></span></button></th>
                         <th class="table-head-cell">Estado</th>
                         <th class="table-head-cell">Acciones</th>
                     </tr>
@@ -33,45 +47,112 @@
     <script type="module">
         import { apiFetch, apiFetchBlob } from '/common/js/apiClient.js';
         import { bootstrapPage } from '/common/js/nav.js';
-        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun, renderEmptyRow, renderSkeletonRows } from '/common/js/ui.js';
-        import { iconDownload } from '/common/js/icons.js';
+        import { formatCurrency, formatDate, downloadBlob, renderBadge, confirmAndRun, renderEmptyRow, renderSkeletonRows, toggleSort, sortItems, sortIndicator, facturaSortAccessor, renderFacturaDetailRow, bindCopyButtons } from '/common/js/ui.js';
+        import { iconDownload, iconSearch, iconChevronDown, iconChevronUp } from '/common/js/icons.js';
 
         bootstrapPage('CLIENTE', init);
 
         async function init() {
             const tbody = document.getElementById('facturas-body');
-            tbody.innerHTML = renderSkeletonRows(3, 5);
+            const searchInput = document.getElementById('search-input');
+            const estadoFilter = document.getElementById('estado-filter');
+            document.getElementById('search-icon').innerHTML = iconSearch();
+
+            tbody.innerHTML = renderSkeletonRows(3, 6);
             const facturas = await apiFetch('/mis-facturas');
+            let sortState = { key: 'numero', dir: 'desc' };
+            const expandedIds = new Set();
 
-            tbody.innerHTML = facturas.map(factura => {
-                return `
-                    <tr class="table-row" data-id="${factura.id}">
-                        <td class="table-cell">${factura.numero}</td>
-                        <td class="table-cell">${formatDate(factura.fechaEmision)}</td>
-                        <td class="table-cell">${formatCurrency(factura.total)}</td>
-                        <td class="table-cell">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
-                        <td class="table-cell">
-                            <button type="button" data-action="pdf" class="btn-icon">${iconDownload()} PDF</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('') || renderEmptyRow(5, 'Todavia no tienes facturas');
+            const emitidas = facturas.filter(f => f.estado === 'EMITIDA');
+            const totalFacturado = emitidas.reduce((sum, f) => sum + f.total, 0);
+            document.getElementById('stats-row').innerHTML = `
+                <div class="stat-tile">
+                    <p class="stat-tile-label">Facturas emitidas</p>
+                    <p class="stat-tile-value">${emitidas.length}</p>
+                </div>
+                <div class="stat-tile">
+                    <p class="stat-tile-label">Total facturado</p>
+                    <p class="stat-tile-value">${formatCurrency(totalFacturado)}</p>
+                </div>
+            `;
 
-            tbody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
-                button.addEventListener('click', () => {
-                    const facturaId = button.closest('tr').dataset.id;
-                    const factura = facturas.find(f => f.id === facturaId);
-                    confirmAndRun({
-                        button,
-                        action: async () => {
-                            const blob = await apiFetchBlob(`/mis-facturas/${facturaId}/pdf`);
-                            downloadBlob(blob, `factura-${factura.numero}.pdf`);
-                        },
-                        onSuccess: () => {},
-                        errorFallback: 'No se pudo descargar el PDF',
+            function render() {
+                const query = searchInput.value.trim().toLowerCase();
+                const estado = estadoFilter.value;
+
+                let visibles = facturas.filter(f => {
+                    const matchesQuery = !query || String(f.numero).toLowerCase().includes(query);
+                    const matchesEstado = !estado || f.estado === estado;
+                    return matchesQuery && matchesEstado;
+                });
+                visibles = sortItems(visibles, sortState.key, sortState.dir, facturaSortAccessor);
+
+                tbody.innerHTML = visibles.map(factura => {
+                    const expanded = expandedIds.has(factura.id);
+                    const row = `
+                        <tr class="table-row" data-id="${factura.id}">
+                            <td class="table-cell">
+                                <button type="button" data-action="toggle-detail" class="text-stone-400 transition hover:text-stone-700 dark:hover:text-stone-200" aria-label="Ver detalle">
+                                    ${expanded ? iconChevronUp('h-4 w-4') : iconChevronDown('h-4 w-4')}
+                                </button>
+                            </td>
+                            <td class="table-cell">${factura.numero}</td>
+                            <td class="table-cell">${formatDate(factura.fechaEmision)}</td>
+                            <td class="table-cell">${formatCurrency(factura.total)}</td>
+                            <td class="table-cell">${renderBadge(factura.estado === 'EMITIDA', 'Emitida', 'Anulada')}</td>
+                            <td class="table-cell">
+                                <button type="button" data-action="pdf" class="btn-icon">${iconDownload()} PDF</button>
+                            </td>
+                        </tr>
+                    `;
+                    return expanded ? row + renderFacturaDetailRow(factura, 6) : row;
+                }).join('') || renderEmptyRow(6, query || estado ? 'Ninguna factura coincide con el filtro' : 'Todavia no tienes facturas');
+
+                document.querySelectorAll('[data-sort-icon]').forEach(el => {
+                    el.innerHTML = sortIndicator(sortState, el.dataset.sortIcon);
+                });
+
+                bindCopyButtons(tbody);
+
+                tbody.querySelectorAll('button[data-action="toggle-detail"]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const facturaId = button.closest('tr').dataset.id;
+                        if (expandedIds.has(facturaId)) {
+                            expandedIds.delete(facturaId);
+                        } else {
+                            expandedIds.add(facturaId);
+                        }
+                        render();
                     });
                 });
+
+                tbody.querySelectorAll('button[data-action="pdf"]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const facturaId = button.closest('tr').dataset.id;
+                        const factura = facturas.find(f => f.id === facturaId);
+                        confirmAndRun({
+                            button,
+                            action: async () => {
+                                const blob = await apiFetchBlob(`/mis-facturas/${facturaId}/pdf`);
+                                downloadBlob(blob, `factura-${factura.numero}.pdf`);
+                            },
+                            onSuccess: () => {},
+                            errorFallback: 'No se pudo descargar el PDF',
+                        });
+                    });
+                });
+            }
+
+            searchInput.addEventListener('input', render);
+            estadoFilter.addEventListener('change', render);
+            document.querySelectorAll('[data-sort]').forEach(button => {
+                button.addEventListener('click', () => {
+                    sortState = toggleSort(sortState, button.dataset.sort);
+                    render();
+                });
             });
+
+            render();
         }
     </script>
 </body>

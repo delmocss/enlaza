@@ -8,15 +8,17 @@
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <header id="app-nav" class="bg-white dark:bg-stone-800"></header>
 
     <main class="mx-auto max-w-5xl px-4 py-8">
         <nav id="breadcrumbs" class="mb-4 flex items-center gap-1.5 text-sm" aria-label="Breadcrumb"></nav>
-        <h1 class="mb-2 text-xl font-semibold text-slate-900 dark:text-slate-100">Contables asignados</h1>
-        <p class="mb-6 text-sm text-slate-500 dark:text-slate-400">
+        <h1 class="page-title mb-2">Contables asignados</h1>
+        <p class="mb-6 text-sm text-stone-500 dark:text-stone-400">
             Solo lectura y baja: la asignacion de un CONTABLE nuevo se hace desde los usuarios semilla del sistema, no desde esta pantalla.
         </p>
+
+        <div id="stats-row" class="mb-6 grid grid-cols-1 gap-4 sm:w-48"></div>
 
         <section class="card">
             <table class="table-shell">
@@ -62,6 +64,14 @@
             async function loadContables() {
                 tbody.innerHTML = renderSkeletonRows(3, 4);
                 const contables = await apiFetch(`/empresas/${empresaId}/contables`);
+
+                document.getElementById('stats-row').innerHTML = `
+                    <div class="stat-tile">
+                        <p class="stat-tile-label">Contables asignados</p>
+                        <p class="stat-tile-value">${contables.length}</p>
+                    </div>
+                `;
+
                 tbody.innerHTML = contables.map(contable => `
                     <tr class="table-row" data-id="${contable.usuarioId}">
                         <td class="table-cell">${escapeHtml(contable.nombre)}</td>

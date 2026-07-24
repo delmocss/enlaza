@@ -8,11 +8,12 @@
     <link rel="stylesheet" href="/common/css/styles.css" />
     <script src="/common/js/config.js"></script>
 </head>
-<body class="min-h-screen bg-slate-50 dark:bg-slate-950">
-    <header id="app-nav" class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"></header>
+<body class="min-h-screen bg-stone-100 dark:bg-stone-900">
+    <header id="app-nav" class="bg-white dark:bg-stone-800"></header>
 
     <main class="mx-auto max-w-5xl px-4 py-8">
-        <h1 class="mb-6 text-xl font-semibold text-slate-900 dark:text-slate-100">Mis empresas</h1>
+        <h1 class="page-title mb-2">Mis empresas</h1>
+        <p id="empresas-count" class="mb-6 text-sm text-stone-500 dark:text-stone-400"></p>
         <div id="empresas-grid" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
     </main>
 
@@ -35,13 +36,16 @@
 
             const empresas = await apiFetch('/mis-empresas');
 
+            document.getElementById('empresas-count').textContent =
+                `${empresas.length} empresa${empresas.length === 1 ? '' : 's'} asignada${empresas.length === 1 ? '' : 's'}`;
+
             grid.innerHTML = empresas.map(empresa => `
-                <div class="card p-5">
-                    <h2 class="mb-1 font-semibold text-slate-900 dark:text-slate-100">${escapeHtml(empresa.razonSocial)}</h2>
-                    <p class="mb-4 text-sm text-slate-500 dark:text-slate-400">${escapeHtml(empresa.nif)}</p>
+                <div class="card card-interactive p-5">
+                    <h2 class="mb-1 font-semibold text-stone-900 dark:text-stone-100">${escapeHtml(empresa.razonSocial)}</h2>
+                    <p class="mb-4 text-sm text-stone-500 dark:text-stone-400">${escapeHtml(empresa.nif)}</p>
                     <div class="flex gap-4 text-sm">
-                        <a href="/contable/clientes.html?empresaId=${empresa.id}" class="text-indigo-600 hover:underline dark:text-indigo-400">Clientes</a>
-                        <a href="/contable/series.html?empresaId=${empresa.id}" class="text-indigo-600 hover:underline dark:text-indigo-400">Series y facturas</a>
+                        <a href="/contable/clientes.html?empresaId=${empresa.id}" class="text-canela-700 hover:underline dark:text-canela-400">Clientes</a>
+                        <a href="/contable/series.html?empresaId=${empresa.id}" class="text-canela-700 hover:underline dark:text-canela-400">Series y facturas</a>
                     </div>
                 </div>
             `).join('') || '<p class="empty-state col-span-full">No tienes empresas asignadas todavia.</p>';
