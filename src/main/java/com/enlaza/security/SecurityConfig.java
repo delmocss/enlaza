@@ -34,7 +34,8 @@ public class SecurityConfig {
             "/api/auth/logout",
             "/swagger-ui.html",
             "/swagger-ui/**",
-            "/v3/api-docs/**"
+            "/v3/api-docs/**",
+            "/actuator/health"
     };
 
     private final JwtService jwtService;
@@ -64,9 +65,9 @@ public class SecurityConfig {
     }
 
     /**
-     * Scoped a /api/** unicamente: el resto de rutas (swagger, actuator si
-     * se anade en el futuro) no necesitan CORS porque no las consume el
-     * frontend via fetch desde otro origen.
+     * Scoped a /api/** unicamente: el resto de rutas (swagger, actuator) no
+     * necesitan CORS porque no las consume el frontend via fetch desde otro
+     * origen -- las llama directamente la plataforma de despliegue o un humano.
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
