@@ -43,6 +43,22 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # Solo "health": es publico (lo consulta el healthcheck de la
+        # plataforma de despliegue sin autenticar).
+        include: health
+  endpoint:
+    health:
+      # Fijado explicitamente (coincide con el valor por defecto de Spring
+      # Boot) para que un futuro cambio de perfil o una subida de version
+      # no lo cambie en silencio -- esta ruta es publica y sin autenticar,
+      # "never" es lo que evita filtrar detalles internos (conexion a BD,
+      # espacio en disco) en ella.
+      show-details: never
+
 logging:
   level:
     root: INFO

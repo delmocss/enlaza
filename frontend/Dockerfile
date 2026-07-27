@@ -6,11 +6,9 @@ WORKDIR /frontend
 COPY . .
 # La imagen de build es Alpine (musl), no glibc: el asset "tailwindcss-linux-x64"
 # normal es un binario glibc y falla en silencio con "not found" (ELF interpreter
-# ausente) bajo musl -- hace falta el asset "-musl" dedicado.
-RUN curl -sLo /usr/local/bin/tailwindcss \
-        https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64-musl \
-    && chmod +x /usr/local/bin/tailwindcss \
-    && tailwindcss -i common/css/input.css -o common/css/styles.css --minify
+# ausente) bajo musl -- hace falta el asset "-musl" dedicado. Ver
+# scripts/compile-css.sh (compartido con el build de Vercel, que si es glibc).
+RUN sh scripts/compile-css.sh linux-x64-musl
 
 # ---- Runtime ----
 FROM nginx:alpine
