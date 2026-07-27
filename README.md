@@ -42,6 +42,7 @@ Proyecto de portfolio backend (junior/mid): pensado para parecer y funcionar com
 | Persistencia | Spring Data JPA / Hibernate + PostgreSQL 16, Flyway (migraciones versionadas) |
 | Seguridad | Spring Security 6 + JWT (`jjwt` 0.12.x) — access token JWT, refresh token opaco hasheado en BD |
 | API docs | springdoc-openapi 2.8.6 (Swagger UI, esquema Bearer) |
+| Observabilidad | Spring Boot Actuator, solo `/actuator/health` expuesto (público, sin detalles internos) — pensado para el healthcheck de la plataforma de despliegue |
 | PDF | Thymeleaf (solo para generar el HTML de la factura) + OpenHTMLtoPDF |
 | Frontend | JavaScript vanilla (módulos ES nativos, sin bundler ni TypeScript) + Tailwind CSS v4, servido por su propio `nginx` — nunca por Spring Boot |
 | Testing | JUnit 5 + Mockito + Testcontainers (Postgres real, nunca H2), 75 tests de integración/unitarios |
@@ -91,6 +92,10 @@ mvn test
 
 75 tests (unitarios + integración contra Postgres real vía Testcontainers, nunca H2). Cubren, entre otros: numeración concurrente de facturas (10 hilos simultáneos sobre la misma serie), rotación y reutilización de refresh tokens, cálculo de impuestos, y verificación de integridad de la cadena de hashes.
 
+## Despliegue
+
+Checklist completo (Render para el backend + Postgres gestionado, Vercel para el frontend, qué variables de entorno rotar y cuáles no) en [`docs/02-despliegue.md`](docs/02-despliegue.md).
+
 ## Límites de alcance (decisiones deliberadas, no huecos olvidados)
 
 - **Sin gestión de usuarios desde la UI.** El alta de usuarios (ADMIN/CONTABLE/CLIENTE) se apoya deliberadamente en los usuarios semilla del `DemoDataSeeder`. La pantalla de Contables de un ADMIN es de solo lectura + "quitar" — no existe (ni se añadió) un endpoint para crear usuarios nuevos desde la API, porque construir una UI para una funcionalidad que no existe en el backend habría sido alcance añadido sin valor real para el propósito de portfolio del proyecto.
@@ -102,10 +107,11 @@ mvn test
 
 ```
 src/               Backend Spring Boot (package-by-feature: usuario, empresa, cliente, serie, factura, security...)
-frontend/          Frontend estático (JS vanilla + Tailwind), servicio nginx propio
+frontend/          Frontend estático (JS vanilla + Tailwind), servicio nginx propio en local, Vercel en despliegue
 docs/
   01-modelo-datos.md         Modelo de datos y decisiones técnicas (Fase 1)
+  02-despliegue.md           Checklist de despliegue (Fase 10)
   images/                    Capturas usadas en este README
   postman/                   Colección Postman
-docker-compose.yml           app + postgres + frontend
+docker-compose.yml           app + postgres + frontend (entorno local)
 ```
