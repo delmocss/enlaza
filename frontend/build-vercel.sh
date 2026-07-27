@@ -3,8 +3,8 @@
 # del Dockerfile (que compila para nginx/Alpine), pero con dos diferencias
 # reales:
 #   1. El entorno de build de Vercel es glibc (no musl como Alpine), asi
-#      que hace falta el binario "tailwindcss-linux-x64" normal, no el
-#      "-musl" que usa el Dockerfile.
+#      que scripts/compile-css.sh se llama con el sufijo de asset normal
+#      ("linux-x64"), no el "-musl" que usa el Dockerfile.
 #   2. Aqui tambien se genera common/js/config.js a partir de la variable
 #      de entorno ENLAZA_API_BASE del proyecto de Vercel, para que el
 #      frontend desplegado apunte al backend real (Render) en vez de a
@@ -13,12 +13,12 @@
 #      toca, asi que el desarrollo local con docker-compose sigue igual.
 set -eu
 
-curl -sLo /tmp/tailwindcss \
-    https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64
-chmod +x /tmp/tailwindcss
-/tmp/tailwindcss -i common/css/input.css -o common/css/styles.css --minify
-
+# Falla ANTES de descargar/compilar nada si falta la variable: un proyecto
+# de Vercel mal configurado (o duplicado sin copiar las env vars) falla al
+# instante en vez de gastar minutos de build en cada reintento.
 : "${ENLAZA_API_BASE:?falta la variable de entorno ENLAZA_API_BASE en el proyecto de Vercel (ej. https://enlaza-api.onrender.com/api)}"
+
+sh scripts/compile-css.sh linux-x64
 
 cat > common/js/config.js <<EOF
 // Generado en el build de Vercel (build-vercel.sh) a partir de la
