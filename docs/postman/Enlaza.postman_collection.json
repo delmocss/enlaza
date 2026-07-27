@@ -1,0 +1,460 @@
+{
+  "info": {
+    "name": "Enlaza API",
+    "description": "Coleccion para probar la API de Enlaza (facturacion electronica multi-empresa con cadena de integridad verificable). Ejecuta primero 'Auth > Login (ADMIN)' -- rellena automaticamente accessToken/refreshToken como variables de coleccion, y el resto de peticiones ya las usan. Los requests de creacion (empresa, cliente, serie, factura) tambien rellenan automaticamente los ids que necesitan las peticiones scoped siguientes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "empresaId", "value": "", "type": "string" },
+    { "key": "clienteId", "value": "", "type": "string" },
+    { "key": "serieId", "value": "", "type": "string" },
+    { "key": "facturaId", "value": "", "type": "string" },
+    { "key": "usuarioId", "value": "", "type": "string", "description": "id de un Usuario existente, solo necesario para 'Asignar contable a empresa'" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@enlaza.dev\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);",
+                  "pm.test('login ok', () => pm.response.code === 200);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (CONTABLE)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"contable@enlaza.dev\",\n  \"password\": \"Contable123!\"\n}" },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (CLIENTE)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"cliente@enlaza.dev\",\n  \"password\": \"Cliente123!\"\n}" },
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refrescar token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "auth": { "type": "noauth" },
+            "description": "El refresh token es de un solo uso: al rotarlo, el anterior queda revocado. Reutilizarlo revoca TODAS las sesiones del usuario (proteccion contra robo de token)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quien soy (/me)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Cambiar contrasena",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Admin123!\",\n  \"newPassword\": \"NuevaPassword123!\"\n}"
+            },
+            "description": "Revoca todas las demas sesiones/refresh tokens del usuario al cambiar la contrasena. OJO: ejecutar esto cambia de verdad la contrasena del admin sembrado -- las siguientes ejecuciones de 'Login (ADMIN)' con Admin123! fallaran hasta que vuelvas a cambiarla o reinicies la base de datos."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "auth": { "type": "noauth" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Empresas (ADMIN)",
+      "item": [
+        {
+          "name": "Crear empresa",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/empresas", "host": ["{{baseUrl}}"], "path": ["api", "empresas"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razonSocial\": \"Empresa de Prueba S.L.\",\n  \"nif\": \"B12345678\",\n  \"direccion\": \"Calle Falsa 123\",\n  \"email\": \"contacto@empresaprueba.dev\",\n  \"telefono\": \"600000000\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const json = pm.response.json();", "if (json.id) pm.collectionVariables.set('empresaId', json.id);"] }
+            }
+          ]
+        },
+        {
+          "name": "Listar empresas",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas", "host": ["{{baseUrl}}"], "path": ["api", "empresas"] }
+          }
+        },
+        {
+          "name": "Ver empresa",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}"] }
+          }
+        },
+        {
+          "name": "Editar empresa",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razonSocial\": \"Empresa de Prueba S.L. (editada)\",\n  \"nif\": \"B12345678\",\n  \"direccion\": \"Calle Falsa 123\",\n  \"email\": \"contacto@empresaprueba.dev\",\n  \"telefono\": \"600000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Desactivar empresa",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/desactivar", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "desactivar"] }
+          }
+        },
+        {
+          "name": "Activar empresa",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/activar", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "activar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Contables (ADMIN)",
+      "item": [
+        {
+          "name": "Listar contables asignados",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/contables", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "contables"] }
+          }
+        },
+        {
+          "name": "Asignar contable a empresa",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/contables/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "contables", "{{usuarioId}}"] },
+            "description": "Requiere el id de un Usuario con role=CONTABLE ya existente. No hay endpoint para crear usuarios: el proyecto se apoya deliberadamente en los usuarios semilla (ver README, seccion 'Limites de alcance')."
+          }
+        },
+        {
+          "name": "Quitar contable de empresa",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/contables/{{usuarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "contables", "{{usuarioId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mis empresas (ADMIN/CONTABLE)",
+      "item": [
+        {
+          "name": "Listar mis empresas",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/mis-empresas", "host": ["{{baseUrl}}"], "path": ["api", "mis-empresas"] },
+            "description": "ADMIN ve todas las empresas; CONTABLE solo las que tiene asignadas."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clientes (ADMIN/CONTABLE)",
+      "item": [
+        {
+          "name": "Crear cliente",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/clientes", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "clientes"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente de Prueba S.L.\",\n  \"nif\": \"87654321Z\",\n  \"direccion\": \"Avenida Siempreviva 742\",\n  \"email\": \"cliente@prueba.dev\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const json = pm.response.json();", "if (json.id) pm.collectionVariables.set('clienteId', json.id);"] }
+            }
+          ]
+        },
+        {
+          "name": "Listar clientes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/clientes", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "clientes"] }
+          }
+        },
+        {
+          "name": "Ver cliente",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/clientes/{{clienteId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "clientes", "{{clienteId}}"] }
+          }
+        },
+        {
+          "name": "Editar cliente",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/clientes/{{clienteId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "clientes", "{{clienteId}}"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cliente de Prueba S.L. (editado)\",\n  \"nif\": \"87654321Z\",\n  \"direccion\": \"Avenida Siempreviva 742\",\n  \"email\": \"cliente@prueba.dev\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar cliente",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/clientes/{{clienteId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "clientes", "{{clienteId}}"] },
+            "description": "Falla con 409 si el cliente ya tiene facturas asociadas (FK real)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Series de facturacion (ADMIN/CONTABLE)",
+      "item": [
+        {
+          "name": "Crear serie",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series"] },
+            "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"FAC-2026\"\n}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const json = pm.response.json();", "if (json.id) pm.collectionVariables.set('serieId', json.id);"] }
+            }
+          ]
+        },
+        {
+          "name": "Listar series",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series"] }
+          }
+        },
+        {
+          "name": "Ver serie",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}"] }
+          }
+        },
+        {
+          "name": "Desactivar serie",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/desactivar", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "desactivar"] }
+          }
+        },
+        {
+          "name": "Activar serie",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/activar", "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "activar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Facturas (ADMIN/CONTABLE)",
+      "item": [
+        {
+          "name": "Crear factura",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/facturas",
+              "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "facturas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"lineas\": [\n    {\n      \"descripcion\": \"Servicio de consultoria\",\n      \"cantidad\": 1,\n      \"precioUnitario\": 100.00,\n      \"porcentajeIva\": 21,\n      \"porcentajeIrpf\": 15\n    }\n  ]\n}"
+            },
+            "description": "El calculo de importes y el hash de la cadena los firma el servidor; lo que se envie en cantidad/precio/IVA/IRPF por linea es lo unico que hace falta."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": ["const json = pm.response.json();", "if (json.id) pm.collectionVariables.set('facturaId', json.id);"] }
+            }
+          ]
+        },
+        {
+          "name": "Listar facturas de la serie",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/facturas",
+              "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "facturas"]
+            }
+          }
+        },
+        {
+          "name": "Ver factura",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/facturas/{{facturaId}}",
+              "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "facturas", "{{facturaId}}"]
+            }
+          }
+        },
+        {
+          "name": "Descargar PDF de factura",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/facturas/{{facturaId}}/pdf",
+              "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "facturas", "{{facturaId}}", "pdf"]
+            }
+          }
+        },
+        {
+          "name": "Anular factura",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/facturas/{{facturaId}}/anular",
+              "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "facturas", "{{facturaId}}", "anular"]
+            },
+            "description": "No borra ni renumera: conserva numero y hash (ver decision D7 en docs/01-modelo-datos.md)."
+          }
+        },
+        {
+          "name": "Verificar integridad de la cadena",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/empresas/{{empresaId}}/series/{{serieId}}/facturas/verificacion",
+              "host": ["{{baseUrl}}"], "path": ["api", "empresas", "{{empresaId}}", "series", "{{serieId}}", "facturas", "verificacion"]
+            },
+            "description": "Recorre la cadena completa de la serie y recalcula cada hash de forma independiente; se detiene en la primera rotura encontrada."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Mis facturas (CLIENTE)",
+      "item": [
+        {
+          "name": "Listar mis facturas",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/mis-facturas", "host": ["{{baseUrl}}"], "path": ["api", "mis-facturas"] },
+            "description": "Requiere estar logueado con un usuario role=CLIENTE (ver 'Login (CLIENTE)' en la carpeta Auth)."
+          }
+        },
+        {
+          "name": "Descargar PDF de mi factura",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/mis-facturas/{{facturaId}}/pdf", "host": ["{{baseUrl}}"], "path": ["api", "mis-facturas", "{{facturaId}}", "pdf"] }
+          }
+        }
+      ]
+    }
+  ]
+}
