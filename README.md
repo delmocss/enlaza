@@ -6,6 +6,12 @@ Proyecto de portfolio backend (junior/mid): pensado para parecer y funcionar com
 
 > ⚠️ Este proyecto es un ejercicio de portfolio y **no implementa ni certifica el cumplimiento legal de VeriFactu**. Está inspirado en sus requisitos técnicos (cadena de hashes, trazabilidad), no es una solución homologada.
 
+## Demo en vivo
+
+**https://enlaza-frontend.vercel.app**: pruébala con las [cuentas de demostración](#cuentas-de-demostración) (ADMIN, CONTABLE y CLIENTE).
+
+> La demo corre íntegramente en planes gratuitos (Vercel + Render + Neon). Si nadie la ha usado en los últimos 15 minutos, el backend se duerme y **la primera petición tarda 30-60 s** en despertar; después responde con normalidad. La API está en `https://enlaza-api-th30.onrender.com/swagger-ui.html`.
+
 ## Núcleo técnico diferenciador
 
 - **Multi-tenancy real**: un ADMIN gestiona varias Empresas; cada Empresa tiene sus propias Series de facturación, Clientes y Contables asignados.
@@ -94,7 +100,7 @@ mvn test
 
 ## Despliegue
 
-Checklist completo (Render para el backend + Postgres gestionado, Vercel para el frontend, qué variables de entorno rotar y cuáles no) en [`docs/02-despliegue.md`](docs/02-despliegue.md).
+Desplegado en Render (backend, Docker), Neon (Postgres) y Vercel (frontend estático), todo en capa gratuita. Checklist completo (Render para el backend, Vercel para el frontend, qué variables de entorno rotar y cuáles no) en [`docs/02-despliegue.md`](docs/02-despliegue.md).
 
 ## Límites de alcance (decisiones deliberadas, no huecos olvidados)
 
