@@ -32,8 +32,8 @@ import java.util.stream.Collectors;
  * deliberadamente el hash para no romper la cadena hacia adelante (ver
  * comentario de Factura), asi que esta cadena no esta pensada para
  * detectar manipulaciones del estado EMITIDA/ANULADA -- eso le
- * corresponderia a un futuro AuditLog (deuda ya identificada del
- * proyecto), no a esta formula.
+ * corresponderia a una auditoria de cambios (AuditLog, disenada en
+ * docs/01-modelo-datos.md pero fuera del alcance), no a esta formula.
  */
 public final class FacturaHashCalculator {
 

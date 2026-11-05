@@ -104,7 +104,9 @@ Serie de numeración de una Empresa (ej: "A", "F2026").
 | revoked | boolean | |
 | createdAt | Instant | |
 
-### AuditLog
+### AuditLog (diseñada, NO implementada)
+
+> Decisión de alcance: la tabla y el listener están diseñados (ver D8) pero se dejaron fuera de la implementación. La integridad de las facturas ya la cubre la cadena de hashes; una auditoría genérica de cambios sería el siguiente paso natural, no un requisito del núcleo del proyecto.
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | UUID (PK) | |
@@ -166,7 +168,7 @@ Al bloquear la fila de la serie para obtener el siguiente número, ya se dispone
 **D7. Estado de `Factura`: solo `EMITIDA` / `ANULADA`, sin borradores.**
 El alcance pedido no incluye un flujo de borrador; añadirlo introduciría numeración condicional (¿cuándo se asigna el número?) fuera de lo solicitado. Una factura anulada conserva su número y su hash — igual que en un sistema fiscal real, no se borra ni se renumera.
 
-**D8. Auditoría con `@EntityListeners` + tabla `AuditLog` genérica, no event sourcing.**
+**D8. (Diseño, no implementado) Auditoría con `@EntityListeners` + tabla `AuditLog` genérica, no event sourcing.**
 Event sourcing rediseñaría toda la persistencia alrededor de eventos/aggregates, un esfuerzo desproporcionado para el alcance y que diluiría el foco del proyecto (la cadena de hashes). `@EntityListeners` (`@PrePersist`/`@PreUpdate`) capturando snapshots en `AuditLog` cumple el requisito sin salir del modelo JPA convencional del resto del proyecto.
 
 **D9. `BigDecimal` con escala fija (2 decimales, `RoundingMode.HALF_UP`) para todos los importes.**

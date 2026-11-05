@@ -51,7 +51,7 @@ Proyecto de portfolio backend (junior/mid): pensado para parecer y funcionar com
 | Observabilidad | Spring Boot Actuator, solo `/actuator/health` expuesto (público, sin detalles internos) — pensado para el healthcheck de la plataforma de despliegue |
 | PDF | Thymeleaf (solo para generar el HTML de la factura) + OpenHTMLtoPDF |
 | Frontend | JavaScript vanilla (módulos ES nativos, sin bundler ni TypeScript) + Tailwind CSS v4, servido por su propio `nginx` — nunca por Spring Boot |
-| Testing | JUnit 5 + Mockito + Testcontainers (Postgres real, nunca H2), 75 tests de integración/unitarios |
+| Testing | JUnit 5 + Mockito + Testcontainers (Postgres real, nunca H2), 81 tests de integración/unitarios |
 | Contenerización | Docker + docker-compose (`app`, `postgres`, `frontend`) |
 
 ## Arquitectura y decisiones de diseño
@@ -96,7 +96,7 @@ Requiere JDK 21, Maven y Docker corriendo (Testcontainers levanta un Postgres re
 mvn test
 ```
 
-75 tests (unitarios + integración contra Postgres real vía Testcontainers, nunca H2). Cubren, entre otros: numeración concurrente de facturas (10 hilos simultáneos sobre la misma serie), rotación y reutilización de refresh tokens, cálculo de impuestos, y verificación de integridad de la cadena de hashes.
+81 tests (unitarios + integración contra Postgres real vía Testcontainers, nunca H2). Cubren, entre otros: numeración concurrente de facturas (10 hilos simultáneos sobre la misma serie), rotación y reutilización de refresh tokens, cálculo de impuestos, y verificación de integridad de la cadena de hashes.
 
 ## Despliegue
 
@@ -107,6 +107,8 @@ Desplegado en Render (backend, Docker), Neon (Postgres) y Vercel (frontend está
 - **Sin gestión de usuarios desde la UI.** El alta de usuarios (ADMIN/CONTABLE/CLIENTE) se apoya deliberadamente en los usuarios semilla del `DemoDataSeeder`. La pantalla de Contables de un ADMIN es de solo lectura + "quitar" — no existe (ni se añadió) un endpoint para crear usuarios nuevos desde la API, porque construir una UI para una funcionalidad que no existe en el backend habría sido alcance añadido sin valor real para el propósito de portfolio del proyecto.
 - **Sin certificación VeriFactu real.** Ver aviso al inicio de este documento.
 - **Sin borradores de factura.** Una factura solo puede estar `EMITIDA` o `ANULADA`; anular no borra ni renumera, preserva su hash. Ver decisión D7 en `docs/01-modelo-datos.md`.
+- **Sin tabla de auditoría (`AuditLog`).** Está diseñada en [`docs/01-modelo-datos.md`](docs/01-modelo-datos.md) (decisión D8) pero no implementada: la integridad de las facturas ya la garantiza la cadena de hashes, y registrar quién cambió qué sería ampliar el alcance, no completar el núcleo.
+
 - **Sin autenticación social ni recuperación de contraseña por email.** Fuera del núcleo técnico que el proyecto quiere demostrar (multi-tenancy, RBAC, cadena de integridad); habría añadido infraestructura de correo sin aportar a ese objetivo.
 
 ## Estructura del repositorio

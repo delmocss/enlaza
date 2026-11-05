@@ -1,0 +1,4 @@
+# Los scripts de shell deben ser siempre LF (en Windows, autocrlf los dejaba en CRLF
+# y rompian el build de Docker: "set: illegal option -").
+*.sh text eol=lf
+Dockerfile text eol=lf
