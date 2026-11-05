@@ -10,6 +10,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -65,6 +66,16 @@ public class GlobalExceptionHandler {
                 fieldErrors
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiError);
+    }
+
+    /**
+     * Un id que no es un UUID valido en la ruta (p. ej. /empresas/abc) es un
+     * error del cliente, no del servidor: sin este handler caia en el generico
+     * y devolvia un 500 y un log de error por una peticion mal formada.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "El parametro '" + ex.getName() + "' no tiene un formato valido", request);
     }
 
     @ExceptionHandler(Exception.class)

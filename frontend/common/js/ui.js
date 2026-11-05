@@ -328,3 +328,61 @@ export function downloadBlob(blob, filename) {
     link.remove();
     URL.revokeObjectURL(url);
 }
+
+/**
+ * Formulario de alta/edicion compartido por las pantallas CRUD (empresas,
+ * clientes): el mismo formulario sirve para crear y para editar. Gestiona el
+ * modo (titulo, texto del boton, boton Cancelar), el envio (deshabilitar el
+ * boton, mostrar el error de la API) y el reseteo tras guardar.
+ *
+ * - fill(item): vuelca la entidad a editar en los inputs.
+ * - buildPayload(): lee los inputs y devuelve el cuerpo a enviar.
+ * - save(payload, editingId): hace la llamada (POST si editingId es null, PUT si no).
+ * - onSaved(): recarga la tabla tras guardar.
+ * Devuelve { startEdit(item, title) }.
+ */
+export function setupEntityForm({ form, titleText, createLabel, fill, buildPayload, save, onSaved, errorFallback }) {
+    const title = form.parentElement.querySelector('h2');
+    const error = form.querySelector('.banner-error');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const cancelButton = form.querySelector('button[type="button"]');
+    let editingId = null;
+
+    function reset() {
+        editingId = null;
+        form.reset();
+        title.textContent = titleText;
+        submitButton.textContent = createLabel;
+        cancelButton.classList.add('hidden');
+        showError(error, null);
+    }
+
+    function startEdit(item, editingTitle) {
+        editingId = item.id;
+        fill(item);
+        title.textContent = editingTitle;
+        submitButton.textContent = 'Guardar cambios';
+        cancelButton.classList.remove('hidden');
+        showError(error, null);
+        form.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        showError(error, null);
+        submitButton.disabled = true;
+        try {
+            await save(buildPayload(), editingId);
+            reset();
+            await onSaved();
+        } catch (err) {
+            showError(error, err instanceof ApiError ? err.message : errorFallback);
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+
+    cancelButton.addEventListener('click', reset);
+
+    return { startEdit };
+}

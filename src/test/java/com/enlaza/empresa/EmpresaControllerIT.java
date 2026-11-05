@@ -67,6 +67,14 @@ class EmpresaControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void obtener_conIdMalformado_devuelve400_noUn500() {
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/empresas/no-es-un-uuid", HttpMethod.GET, authenticated(adminToken()), String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     void actualizar_comoAdmin_actualizaCampos() {
         UUID id = crearEmpresa(adminToken(), nuevaEmpresaRequest()).getBody().id();
         EmpresaRequest actualizacion = new EmpresaRequest("Nueva Razon Social S.L.", nifUnico(), "Calle Nueva 1", "nuevo@empresa.dev", "600000000");

@@ -6,6 +6,12 @@ import com.enlaza.empresa.Empresa;
 import com.enlaza.empresa.EmpresaRepository;
 import com.enlaza.empresa.UsuarioEmpresa;
 import com.enlaza.empresa.UsuarioEmpresaRepository;
+import com.enlaza.factura.FacturaService;
+import com.enlaza.factura.dto.FacturaRequest;
+import com.enlaza.factura.dto.LineaFacturaRequest;
+import com.enlaza.serie.SerieFacturacionService;
+import com.enlaza.serie.dto.SerieFacturacionRequest;
+import com.enlaza.serie.dto.SerieFacturacionResponse;
 import com.enlaza.usuario.Role;
 import com.enlaza.usuario.Usuario;
 import com.enlaza.usuario.UsuarioRepository;
@@ -15,6 +21,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Crea un usuario semilla por rol (ADMIN, CONTABLE, CLIENTE) si todavia no
@@ -38,6 +47,8 @@ public class DemoDataSeeder implements CommandLineRunner {
     private final EmpresaRepository empresaRepository;
     private final ClienteRepository clienteRepository;
     private final UsuarioEmpresaRepository usuarioEmpresaRepository;
+    private final SerieFacturacionService serieFacturacionService;
+    private final FacturaService facturaService;
     private final PasswordEncoder passwordEncoder;
     private final SeedProperties seedProperties;
 
@@ -50,7 +61,8 @@ public class DemoDataSeeder implements CommandLineRunner {
 
         Empresa empresaDemo = seedEmpresaDemo();
         seedAsignacionContable(contable, empresaDemo);
-        seedClienteDemo(empresaDemo, cliente);
+        Cliente clienteDemo = seedClienteDemo(empresaDemo, cliente);
+        seedFacturasDemo(empresaDemo, clienteDemo, contable);
 
         log.warn("Usuarios semilla listos. Sus credenciales son PUBLICAS a proposito (portfolio de demo) "
                 + "-- ver .env.example. No uses esta configuracion para una instancia con datos reales "
@@ -84,7 +96,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         log.info("Contable semilla asignado a la empresa demo: {}", contable.getEmail());
     }
 
-    private void seedClienteDemo(Empresa empresa, Usuario usuarioCliente) {
+    private Cliente seedClienteDemo(Empresa empresa, Usuario usuarioCliente) {
         Cliente clienteDemo = clienteRepository.findByEmpresaId(empresa.getId()).stream()
                 .filter(c -> c.getNif().equals(CLIENTE_DEMO_NIF))
                 .findFirst()
@@ -103,6 +115,35 @@ public class DemoDataSeeder implements CommandLineRunner {
             usuarioCliente.setClienteId(clienteDemo.getId());
             log.info("Usuario CLIENTE semilla vinculado al cliente demo: {}", usuarioCliente.getEmail());
         }
+        return clienteDemo;
+    }
+
+    /**
+     * Siembra una serie "A" con tres facturas encadenadas para que la demo
+     * no arranque vacia (listados, detalle con hashes, PDF y verificacion de
+     * la cadena funcionan desde el primer minuto). Pasa por FacturaService,
+     * asi la numeracion y los hashes son los reales, no datos insertados a
+     * mano. Solo actua si la empresa demo aun no tiene ninguna serie.
+     */
+    private void seedFacturasDemo(Empresa empresa, Cliente cliente, Usuario contable) {
+        if (!serieFacturacionService.listar(empresa.getId()).isEmpty()) {
+            return;
+        }
+        SerieFacturacionResponse serie = serieFacturacionService.crear(empresa.getId(), new SerieFacturacionRequest("A"));
+        facturaService.crear(empresa.getId(), serie.id(), new FacturaRequest(cliente.getId(), List.of(
+                linea("Desarrollo de API REST", "40", "55.00", "21", "0"),
+                linea("Despliegue y puesta en marcha", "4", "60.00", "21", "0"))), contable.getId());
+        facturaService.crear(empresa.getId(), serie.id(), new FacturaRequest(cliente.getId(), List.of(
+                linea("Mantenimiento mensual", "1", "300.00", "21", "15"))), contable.getId());
+        facturaService.crear(empresa.getId(), serie.id(), new FacturaRequest(cliente.getId(), List.of(
+                linea("Formacion al equipo (jornada)", "2", "450.00", "21", "0"),
+                linea("Material didactico", "1", "80.00", "10", "0"))), contable.getId());
+        log.info("Serie A y 3 facturas encadenadas sembradas en la empresa demo");
+    }
+
+    private static LineaFacturaRequest linea(String descripcion, String cantidad, String precio, String iva, String irpf) {
+        return new LineaFacturaRequest(descripcion, new BigDecimal(cantidad), new BigDecimal(precio),
+                new BigDecimal(iva), new BigDecimal(irpf));
     }
 
     private Usuario seedIfMissing(String email, String rawPassword, String nombre, Role role) {

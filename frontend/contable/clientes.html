@@ -64,10 +64,10 @@
     </main>
 
     <script type="module">
-        import { apiFetch, ApiError } from '/common/js/apiClient.js';
+        import { apiFetch } from '/common/js/apiClient.js';
         import { requireQueryParams } from '/common/js/session.js';
         import { bootstrapPage, renderBreadcrumbs } from '/common/js/nav.js';
-        import { escapeHtml, showError, confirmAndRun, renderEmptyRow, renderSkeletonRows } from '/common/js/ui.js';
+        import { escapeHtml, confirmAndRun, renderEmptyRow, renderSkeletonRows, setupEntityForm } from '/common/js/ui.js';
         import { iconEdit, iconTrash } from '/common/js/icons.js';
 
         bootstrapPage('CONTABLE', init);
@@ -80,35 +80,31 @@
             const { empresaId } = query;
 
             const form = document.getElementById('cliente-form');
-            const formTitle = document.getElementById('form-title');
-            const formError = document.getElementById('form-error');
-            const submitButton = document.getElementById('submit-button');
-            const cancelButton = document.getElementById('cancel-edit');
             const tbody = document.getElementById('clientes-body');
+            const base = `/empresas/${empresaId}/clientes`;
 
-            let editingId = null;
-
-            function resetForm() {
-                editingId = null;
-                form.reset();
-                formTitle.textContent = 'Nuevo cliente';
-                submitButton.textContent = 'Crear cliente';
-                cancelButton.classList.add('hidden');
-                showError(formError, null);
-            }
-
-            function startEdit(cliente) {
-                editingId = cliente.id;
-                form.nombre.value = cliente.nombre;
-                form.nif.value = cliente.nif;
-                form.direccion.value = cliente.direccion ?? '';
-                form.email.value = cliente.email ?? '';
-                formTitle.textContent = `Editando: ${cliente.nombre}`;
-                submitButton.textContent = 'Guardar cambios';
-                cancelButton.classList.remove('hidden');
-                showError(formError, null);
-                form.scrollIntoView({ behavior: 'smooth' });
-            }
+            const { startEdit } = setupEntityForm({
+                form,
+                titleText: 'Nuevo cliente',
+                createLabel: 'Crear cliente',
+                fill: (cliente) => {
+                    form.nombre.value = cliente.nombre;
+                    form.nif.value = cliente.nif;
+                    form.direccion.value = cliente.direccion ?? '';
+                    form.email.value = cliente.email ?? '';
+                },
+                buildPayload: () => ({
+                    nombre: form.nombre.value.trim(),
+                    nif: form.nif.value.trim(),
+                    direccion: form.direccion.value.trim() || null,
+                    email: form.email.value.trim() || null,
+                }),
+                save: (payload, editingId) => editingId
+                    ? apiFetch(`${base}/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) })
+                    : apiFetch(base, { method: 'POST', body: JSON.stringify(payload) }),
+                onSaved: () => loadClientes(),
+                errorFallback: 'No se pudo guardar el cliente',
+            });
 
             async function loadBreadcrumbs() {
                 const empresas = await apiFetch('/mis-empresas').catch(() => []);
@@ -148,7 +144,8 @@
                 tbody.querySelectorAll('button[data-action="editar"]').forEach(button => {
                     button.addEventListener('click', () => {
                         const id = button.closest('tr').dataset.id;
-                        startEdit(clientes.find(c => c.id === id));
+                        const cliente = clientes.find(c => c.id === id);
+                        startEdit(cliente, `Editando: ${cliente.nombre}`);
                     });
                 });
 
@@ -166,35 +163,6 @@
                     });
                 });
             }
-
-            form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                showError(formError, null);
-                submitButton.disabled = true;
-
-                const payload = {
-                    nombre: form.nombre.value.trim(),
-                    nif: form.nif.value.trim(),
-                    direccion: form.direccion.value.trim() || null,
-                    email: form.email.value.trim() || null,
-                };
-
-                try {
-                    if (editingId) {
-                        await apiFetch(`/empresas/${empresaId}/clientes/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) });
-                    } else {
-                        await apiFetch(`/empresas/${empresaId}/clientes`, { method: 'POST', body: JSON.stringify(payload) });
-                    }
-                    resetForm();
-                    await loadClientes();
-                } catch (error) {
-                    showError(formError, error instanceof ApiError ? error.message : 'No se pudo guardar el cliente');
-                } finally {
-                    submitButton.disabled = false;
-                }
-            });
-
-            cancelButton.addEventListener('click', resetForm);
 
             loadBreadcrumbs();
             loadClientes();

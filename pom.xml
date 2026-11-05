@@ -19,7 +19,6 @@
 
     <properties>
         <java.version>21</java.version>
-        <mapstruct.version>1.6.3</mapstruct.version>
         <jjwt.version>0.12.6</jjwt.version>
         <openhtmltopdf.version>1.0.10</openhtmltopdf.version>
     </properties>
@@ -110,11 +109,6 @@
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-        <dependency>
-            <groupId>org.mapstruct</groupId>
-            <artifactId>mapstruct</artifactId>
-            <version>${mapstruct.version}</version>
-        </dependency>
 
         <!-- Test -->
         <dependency>
@@ -180,16 +174,6 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                        </path>
-                        <path>
-                            <groupId>org.mapstruct</groupId>
-                            <artifactId>mapstruct-processor</artifactId>
-                            <version>${mapstruct.version}</version>
-                        </path>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok-mapstruct-binding</artifactId>
-                            <version>0.2.0</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
