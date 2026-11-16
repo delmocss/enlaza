@@ -1,5 +1,7 @@
 # Enlaza
 
+[![CI](https://github.com/delmocss/enlaza/actions/workflows/ci.yml/badge.svg)](https://github.com/delmocss/enlaza/actions/workflows/ci.yml)
+
 Sistema de facturación electrónica multi-empresa con una **cadena de integridad verificable** entre facturas, inspirado en los requisitos técnicos de VeriFactu (España). El nombre viene de su mecanismo central: cada factura queda "enlazada" a la anterior de su serie mediante un hash SHA-256.
 
 Proyecto de portfolio backend (junior/mid): pensado para parecer y funcionar como un sistema real de producción, no un ejercicio académico.
@@ -121,5 +123,6 @@ docs/
   02-despliegue.md           Checklist de despliegue (Fase 10)
   images/                    Capturas usadas en este README
   postman/                   Colección Postman
+.github/workflows/ci.yml  CI: build + 81 tests en cada push/PR
 docker-compose.yml           app + postgres + frontend (entorno local)
 ```
