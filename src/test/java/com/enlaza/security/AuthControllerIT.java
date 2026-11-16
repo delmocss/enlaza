@@ -189,14 +189,30 @@ class AuthControllerIT extends AbstractIntegrationTest {
 
         LoginResponse tokens = loginAndGetTokens(email, originalPassword);
 
-        ResponseEntity<Void> changeResponse = restTemplate.exchange(
-                "/api/auth/password", HttpMethod.PATCH,
-                authenticated(tokens.accessToken(), new ChangePasswordRequest(originalPassword, newPassword)),
-                Void.class);
-        assertThat(changeResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        try {
+            ResponseEntity<Void> changeResponse = restTemplate.exchange(
+                    "/api/auth/password", HttpMethod.PATCH,
+                    authenticated(tokens.accessToken(), new ChangePasswordRequest(originalPassword, newPassword)),
+                    Void.class);
+            assertThat(changeResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-        ResponseEntity<LoginResponse> loginWithNewPassword = login(email, newPassword);
-        assertThat(loginWithNewPassword.getStatusCode()).isEqualTo(HttpStatus.OK);
+            ResponseEntity<LoginResponse> loginWithNewPassword = login(email, newPassword);
+            assertThat(loginWithNewPassword.getStatusCode()).isEqualTo(HttpStatus.OK);
+        } finally {
+            // La BD es compartida por todas las clases de test: si dejara la contrasena
+            // cambiada, el resto de ITs que hacen login con este usuario fallarian segun
+            // el orden de ejecucion (que varia entre Windows y el runner de CI).
+            restaurarContrasena(email, newPassword, originalPassword);
+        }
+    }
+
+    private void restaurarContrasena(String email, String actual, String original) {
+        ResponseEntity<LoginResponse> relogin = login(email, actual);
+        if (relogin.getStatusCode() == HttpStatus.OK && relogin.getBody() != null) {
+            restTemplate.exchange("/api/auth/password", HttpMethod.PATCH,
+                    authenticated(relogin.getBody().accessToken(), new ChangePasswordRequest(actual, original)),
+                    Void.class);
+        }
     }
 
     private ResponseEntity<LoginResponse> login(String email, String password) {
