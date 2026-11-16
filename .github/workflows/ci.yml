@@ -10,8 +10,8 @@ jobs:
     name: Backend (build + tests)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -19,3 +19,12 @@ jobs:
       # Los tests de integracion usan Testcontainers (Postgres real);
       # los runners de GitHub ya traen Docker.
       - run: mvn -B verify
+      # Si algun test falla, lo deja como anotacion del run (visible en la
+      # pestana Actions sin tener que abrir el log completo).
+      - name: Resumen de tests fallidos
+        if: failure()
+        run: |
+          grep -lE "(FAILURE|ERROR)!" target/surefire-reports/*.txt 2>/dev/null | while read -r f; do
+            detalle=$(grep -E -A6 "<<< (FAILURE|ERROR)!" "$f" | head -14 | tr '\n' ' ' | cut -c1-900)
+            echo "::error title=Test fallido::$(basename "$f"): $detalle"
+          done
