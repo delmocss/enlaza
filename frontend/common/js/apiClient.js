@@ -63,21 +63,78 @@ async function readErrorMessage(response) {
     }
 }
 
-async function publicPost(path, body) {
-    const response = await fetch(`${API_BASE}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-        throw new ApiError(response.status, await readErrorMessage(response));
-    }
-    return response.json();
+// El backend vive en un plan gratuito que se duerme tras ~15 min sin trafico y tarda
+// 30-90 s en despertar. Sin esto, el primer login de la jornada deja el boton
+// esperando en silencio. warmUpApi() lo despierta mientras el usuario aun escribe.
+const HEALTH_URL = `${API_BASE.replace(/\/api\/?$/, '')}/actuator/health`;
+
+export function warmUpApi() {
+    // no-cors: la respuesta no importa, solo que el servidor reciba la peticion.
+    fetch(HEALTH_URL, { mode: 'no-cors', cache: 'no-store' }).catch(() => {});
 }
 
-export async function login(email, password) {
-    const tokens = await publicPost('/auth/login', { email, password });
-    storeTokens(tokens);
+// status 0 = sin respuesta (red caida o tiempo agotado).
+async function publicPost(path, body, { timeoutMs = 20000 } = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetch(`${API_BASE}${path}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+        });
+        if (!response.ok) {
+            throw new ApiError(response.status, await readErrorMessage(response));
+        }
+        return await response.json();
+    } catch (error) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw new ApiError(0, error.name === 'AbortError' ? 'timeout' : 'network');
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+const RETRYABLE_STATUSES = new Set([0, 502, 503, 504]);
+const LOGIN_ATTEMPTS = 4;
+const LOGIN_ATTEMPT_TIMEOUT_MS = 30000;
+const LOGIN_RETRY_DELAY_MS = 3000;
+
+/**
+ * Inicia sesion. Si el backend esta despertando (sin respuesta, 502/503/504) reintenta
+ * hasta LOGIN_ATTEMPTS veces; una respuesta real (401, 400...) se devuelve al instante.
+ * onWaiting se llama la primera vez que hay que esperar mas de la cuenta.
+ */
+export async function login(email, password, { onWaiting } = {}) {
+    let notified = false;
+    const notify = () => {
+        if (!notified && onWaiting) {
+            notified = true;
+            onWaiting();
+        }
+    };
+    const slowTimer = setTimeout(notify, 4000);
+    try {
+        for (let attempt = 1; ; attempt++) {
+            try {
+                const tokens = await publicPost('/auth/login', { email, password }, { timeoutMs: LOGIN_ATTEMPT_TIMEOUT_MS });
+                storeTokens(tokens);
+                return;
+            } catch (error) {
+                const retryable = error instanceof ApiError && RETRYABLE_STATUSES.has(error.status);
+                if (!retryable || attempt >= LOGIN_ATTEMPTS) {
+                    throw error;
+                }
+                notify();
+                await new Promise((resolve) => setTimeout(resolve, LOGIN_RETRY_DELAY_MS));
+            }
+        }
+    } finally {
+        clearTimeout(slowTimer);
+    }
 }
 
 export async function logout() {
