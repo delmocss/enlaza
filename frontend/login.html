@@ -32,6 +32,9 @@
                     <input id="password" name="password" type="password" required autocomplete="current-password" class="field-input" />
                 </div>
                 <p id="error-banner" class="hidden banner-error"></p>
+                <p id="wake-notice" role="status" class="hidden rounded-md border border-canela-300 bg-canela-50 px-3 py-2 text-sm text-canela-800 dark:border-canela-700 dark:bg-canela-900/30 dark:text-canela-200">
+                    El servidor gratuito se esta despertando. Puede tardar hasta un minuto; no cierres la pagina.
+                </p>
                 <button type="submit" class="btn-primary w-full">
                     Entrar
                 </button>
@@ -40,7 +43,7 @@
     </div>
 
     <script type="module">
-        import { login, apiFetch, ApiError } from '/common/js/apiClient.js';
+        import { login, apiFetch, ApiError, warmUpApi } from '/common/js/apiClient.js';
         import { homeFor } from '/common/js/session.js';
         import { showError } from '/common/js/ui.js';
         import { mountThemeToggle } from '/common/js/theme.js';
@@ -48,25 +51,36 @@
 
         document.getElementById('brand-icon').innerHTML = iconLogo('h-6 w-6');
         mountThemeToggle();
+        warmUpApi();
 
         const form = document.getElementById('login-form');
         const errorBanner = document.getElementById('error-banner');
         const submitButton = form.querySelector('button[type="submit"]');
+        const wakeNotice = document.getElementById('wake-notice');
+        const submitLabel = submitButton.textContent.trim();
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             showError(errorBanner, null);
             submitButton.disabled = true;
+            submitButton.textContent = 'Entrando...';
 
             try {
-                await login(form.email.value.trim(), form.password.value);
+                await login(form.email.value.trim(), form.password.value, {
+                    onWaiting: () => wakeNotice.classList.remove('hidden'),
+                });
                 const me = await apiFetch('/auth/me');
                 window.location.href = homeFor(me.role);
             } catch (error) {
-                const message = error instanceof ApiError && error.status === 401
-                    ? 'Email o contrasena incorrectos'
-                    : 'No se pudo iniciar sesion. Intenta de nuevo.';
+                let message = 'No se pudo iniciar sesion. Intenta de nuevo.';
+                if (error instanceof ApiError && error.status === 401) {
+                    message = 'Email o contrasena incorrectos';
+                } else if (error instanceof ApiError && (error.status === 0 || error.status >= 502)) {
+                    message = 'No se pudo conectar con el servidor. Puede que aun se este despertando: espera unos segundos e intentalo de nuevo.';
+                }
                 showError(errorBanner, message);
+                wakeNotice.classList.add('hidden');
+                submitButton.textContent = submitLabel;
                 submitButton.disabled = false;
             }
         });

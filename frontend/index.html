@@ -79,11 +79,14 @@
     </div>
 
     <script type="module">
-        import { hasStoredSession } from '/common/js/apiClient.js';
+        import { hasStoredSession, warmUpApi } from '/common/js/apiClient.js';
         import { resolveHome } from '/common/js/session.js';
         import { mountThemeToggle } from '/common/js/theme.js';
         import { escapeHtml } from '/common/js/ui.js';
         import { iconLogo, iconLayers, iconUsers, iconCheckCircle, iconDownload, iconShield, iconGithub } from '/common/js/icons.js';
+
+        // Quien llega a la landing suele ir a probar la demo: despierta el backend ya.
+        warmUpApi();
 
         const FEATURES = [
             { icon: iconLayers, title: 'Multi-empresa', text: 'Un Administrador gestiona varias empresas; cada una con sus propias series de facturacion.' },
