@@ -58,6 +58,16 @@ Proyecto de portfolio backend (junior/mid): pensado para parecer y funcionar com
 
 ## Arquitectura y decisiones de diseño
 
+```mermaid
+flowchart LR
+    Usuario[ADMIN / CONTABLE / CLIENTE] --> Front[Frontend JS + Tailwind<br/>Vercel / nginx]
+    Front -->|REST + JWT| Seg[Spring Security<br/>filtro JWT + roles]
+    Seg --> API[Controladores REST<br/>package-by-feature]
+    API --> Serv[Servicios<br/>numeracion, cadena de hashes, PDF]
+    Serv --> JPA[Spring Data JPA + Flyway]
+    JPA --> DB[(PostgreSQL 16<br/>Neon)]
+```
+
 El modelo de datos completo (entidades, diagrama entidad-relación, y las 10 decisiones técnicas no triviales del proyecto — UUID vs. autoincremental, por qué `Empresa` no tiene `owner`, cómo se garantiza la numeración atómica, etc.) está documentado en [`docs/01-modelo-datos.md`](docs/01-modelo-datos.md).
 
 ## Ejecutar en local
@@ -98,7 +108,7 @@ Requiere JDK 21, Maven y Docker corriendo (Testcontainers levanta un Postgres re
 mvn test
 ```
 
-81 tests (unitarios + integración contra Postgres real vía Testcontainers, nunca H2). Cubren, entre otros: numeración concurrente de facturas (10 hilos simultáneos sobre la misma serie), rotación y reutilización de refresh tokens, cálculo de impuestos, y verificación de integridad de la cadena de hashes.
+81 tests (unitarios + integración contra Postgres real vía Testcontainers, nunca H2). Cubren, entre otros: numeración concurrente de facturas (10 hilos simultáneos sobre la misma serie), rotación y reutilización de refresh tokens, cálculo de impuestos, y verificación de integridad de la cadena de hashes. Cobertura de líneas medida con JaCoCo: 95,7 % (el CI exige un mínimo del 85 %). El informe HTML se genera en `target/site/jacoco/index.html` con `mvn verify`.
 
 ## Despliegue
 
